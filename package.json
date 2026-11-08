@@ -1,0 +1,10 @@
+{
+  "name": "flight-logbook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal digital flight logbook (single-file Claude artifact).",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/logic.test.mjs"
+  }
+}

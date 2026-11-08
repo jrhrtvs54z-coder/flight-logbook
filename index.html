@@ -1,0 +1,2408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>try{var l=localStorage.getItem("logbook.look");if(l&&l!=="ledger"&&/^[a-z]+$/.test(l))document.documentElement.setAttribute("data-look",l)}catch(e){}</script>
+<title>Flight Logbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&amp;family=B612+Mono:wght@400;700&amp;display=swap">
+<style>
+:root {
+  /* Layout: sticky header with tabs. Book = ruled ledger sheets ("Flying" | "Details") for one month at a time,
+     one side at a time on a phone (swipe), side by side as an open book on wide screens. Lines still to write are in pen blue. Add flight = one-tap chips.
+     Copy mode = one line at a time, full screen. Stats = recency tiles, monthly columns, tables. Setup = one form.
+     Type: B612 (cockpit display face) + B612 Mono for figures. */
+  --paper: #e4eceb;
+  --sheet: #f8fbfa;
+  --ink: #0f1c1b;
+  --ink-2: #4b5e5c;
+  --rule: #b4c8c5;
+  --pen: #1a3cb5;
+
+  --rule-strong: #8aa29f;
+  --pen-wash: rgba(26, 60, 181, 0.07);
+  --next-bg: #e9eef8;
+  --tot-bg: #eef3f2;
+  --done-bg: #13782f;
+  --done-ink: #ffffff;
+  --bad: #c43535;
+  --red-text: #c0262d;
+  --bar: #2a78d6;
+  --grid: #dbe4e2;
+  --scrim: rgba(10, 20, 19, 0.38);
+  --shadow: 0 1px 2px rgba(15, 28, 27, 0.06), 0 8px 28px rgba(15, 28, 27, 0.07);
+  --status-warn: #fab219;
+  --status-crit: #d03b3b;
+
+  --font-ui: "B612", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "B612 Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-head: var(--font-ui);
+  --r-sheet: 4px;
+  --r-card: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0b1312;
+    --sheet: #131e1d;
+    --ink: #e1eae8;
+    --ink-2: #9cb0ad;
+    --rule: #2a3b39;
+    --pen: #93a9ff;
+    --rule-strong: #405653;
+    --pen-wash: rgba(147, 169, 255, 0.09);
+    --next-bg: #1f2b31;
+    --tot-bg: #182423;
+    --done-bg: #2fae4d;
+    --done-ink: #06140a;
+    --bad: #ff7a7a; --red-text: #ff7b72;
+    --bar: #3987e5;
+    --grid: #22312f;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0b1312;
+  --sheet: #131e1d;
+  --ink: #e1eae8;
+  --ink-2: #9cb0ad;
+  --rule: #2a3b39;
+  --pen: #93a9ff;
+  --rule-strong: #405653;
+  --pen-wash: rgba(147, 169, 255, 0.09);
+  --next-bg: #1f2b31;
+  --tot-bg: #182423;
+  --done-bg: #2fae4d;
+  --done-ink: #06140a;
+  --bad: #ff7a7a; --red-text: #ff7b72;
+  --bar: #3987e5;
+  --grid: #22312f;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+/* ---------- Themes (Setup > Theme). Each sets every color token, so the phone's dark mode can't leak in. ---------- */
+:root[data-look="paper"] {
+  --paper: #ece2cb; --sheet: #fbf6ea; --ink: #2a2118; --ink-2: #6b5c48; --rule: #dccbab; --rule-strong: #b8a07a;
+  --pen: #1f3f8f; --pen-wash: rgba(31, 63, 143, 0.07); --next-bg: #f1e7d0; --tot-bg: #f4ecda;
+  --done-bg: #2f6b3a; --done-ink: #fffdf6; --bad: #a8322b; --red-text: #b3261e; --bar: #1f3f8f; --grid: #e6d9bd;
+  --scrim: rgba(42, 33, 24, 0.42); --shadow: 0 1px 2px rgba(60, 40, 20, 0.08), 0 8px 24px rgba(60, 40, 20, 0.08);
+  --status-warn: #e0a019; --status-crit: #b8322b;
+  --font-ui: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-head: "Source Serif 4", Georgia, serif;
+  --font-num: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r-sheet: 2px; --r-card: 6px;
+  color-scheme: light;
+}
+:root[data-look="cockpit"] {
+  --paper: #040706; --sheet: #09100c; --ink: #b9f6c8; --ink-2: #66a575; --rule: #1a3022; --rule-strong: #2e5838;
+  --pen: #3fe6ff; --pen-wash: rgba(63, 230, 255, 0.08); --next-bg: #0d1c20; --tot-bg: #0c1810;
+  --done-bg: #36d46c; --done-ink: #021006; --bad: #ff5a4f; --red-text: #ff6b5e; --bar: #3fe6ff; --grid: #14251a;
+  --scrim: rgba(0, 0, 0, 0.62); --shadow: none;
+  --status-warn: #ffb000; --status-crit: #ff3b30;
+  --font-ui: "B612", system-ui, sans-serif;
+  --font-head: "B612 Mono", ui-monospace, monospace;
+  --font-num: "B612 Mono", ui-monospace, monospace;
+  --r-sheet: 2px; --r-card: 4px;
+  color-scheme: dark;
+}
+:root[data-look="night"] {
+  --paper: #000000; --sheet: #0a0101; --ink: #e04848; --ink-2: #a03434; --rule: #2a0808; --rule-strong: #4d1313;
+  --pen: #ff6a5c; --pen-wash: rgba(255, 106, 92, 0.08); --next-bg: #1c0404; --tot-bg: #130202;
+  --done-bg: #b8312a; --done-ink: #000000; --bad: #ff8a7a; --red-text: #ff9a8a; --bar: #c23a32; --grid: #210606;
+  --scrim: rgba(0, 0, 0, 0.72); --shadow: none;
+  --status-warn: #d9622b; --status-crit: #ff3b30;
+  --font-ui: "B612", system-ui, sans-serif;
+  --font-head: "B612", system-ui, sans-serif;
+  --font-num: "B612 Mono", ui-monospace, monospace;
+  --r-sheet: 4px; --r-card: 8px;
+  color-scheme: dark;
+}
+:root[data-look="desert"] {
+  --paper: #e6dbc2; --sheet: #f6f0e2; --ink: #2a2a1e; --ink-2: #67624b; --rule: #d3c7a8; --rule-strong: #a99b75;
+  --pen: #8c4a12; --pen-wash: rgba(140, 74, 18, 0.08); --next-bg: #efe3c8; --tot-bg: #eee5cf;
+  --done-bg: #4b5d23; --done-ink: #f6f0e2; --bad: #a3281e; --red-text: #a3281e; --bar: #6f7f3a; --grid: #dfd4b8;
+  --scrim: rgba(42, 42, 30, 0.42); --shadow: 0 1px 2px rgba(60, 50, 20, 0.08), 0 6px 18px rgba(60, 50, 20, 0.07);
+  --status-warn: #e0a019; --status-crit: #a3281e;
+  --font-ui: "Barlow", system-ui, sans-serif;
+  --font-head: "Stardos Stencil", "Barlow", sans-serif;
+  --font-num: "Share Tech Mono", ui-monospace, monospace;
+  --r-sheet: 2px; --r-card: 4px;
+  color-scheme: light;
+}
+:root[data-look="clean"] {
+  --paper: #f2f2f7; --sheet: #ffffff; --ink: #1c1c1e; --ink-2: #6c6c70; --rule: #e3e3e8; --rule-strong: #c7c7cc;
+  --pen: #007aff; --pen-wash: rgba(0, 122, 255, 0.08); --next-bg: #eaf2ff; --tot-bg: #f6f6f9;
+  --done-bg: #34c759; --done-ink: #ffffff; --bad: #ff3b30; --red-text: #d70015; --bar: #007aff; --grid: #ececf1;
+  --scrim: rgba(0, 0, 0, 0.32); --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --status-warn: #ffcc00; --status-crit: #ff3b30;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-head: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-sheet: 12px; --r-card: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-look="clean"] {
+    --paper: #000000; --sheet: #1c1c1e; --ink: #f2f2f7; --ink-2: #98989f; --rule: #2c2c2e; --rule-strong: #3a3a3c;
+    --pen: #0a84ff; --pen-wash: rgba(10, 132, 255, 0.12); --next-bg: #0f2238; --tot-bg: #232326;
+    --done-bg: #30d158; --done-ink: #00210b; --bad: #ff453a; --red-text: #ff6961; --bar: #0a84ff; --grid: #2c2c2e;
+    --scrim: rgba(0, 0, 0, 0.6); --shadow: none;
+    --status-warn: #ffd60a; --status-crit: #ff453a;
+    color-scheme: dark;
+  }
+}
+:root[data-look="sunlight"] {
+  --paper: #ffffff; --sheet: #ffffff; --ink: #000000; --ink-2: #262626; --rule: #8c8c8c; --rule-strong: #000000;
+  --pen: #0033cc; --pen-wash: rgba(0, 51, 204, 0.08); --next-bg: #e3e9ff; --tot-bg: #efefef;
+  --done-bg: #00701f; --done-ink: #ffffff; --bad: #c00000; --red-text: #c00000; --bar: #0033cc; --grid: #c8c8c8;
+  --scrim: rgba(0, 0, 0, 0.5); --shadow: none;
+  --status-warn: #f2a900; --status-crit: #c00000;
+  --font-ui: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-head: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-num: "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
+  --r-sheet: 4px; --r-card: 8px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.wrap { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 16px; }
+.wide .wrap { max-width: 1180px; }
+
+/* Header */
+.top { position: sticky; top: 0; z-index: 30; background: var(--paper); border-bottom: 1px solid var(--rule); }
+.top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 2px; }
+.brand { display: grid; gap: 1px; min-width: 0; }
+.brand h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.brand .sub { font-size: 12px; color: var(--ink-2); font-family: var(--font-num); }
+.sync { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.sync::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--rule-strong); }
+.sync[data-s="ok"]::before { background: var(--done-bg); }
+.sync[data-s="saving"]::before { background: var(--pen); }
+.sync[data-s="bad"]::before { background: var(--bad); }
+.tabs { display: flex; gap: 2px; }
+.tab { border: 0; background: none; padding: 10px 12px; font-size: 14px; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; letter-spacing: 0.03em; }
+.tab[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 700; }
+main { padding-top: 16px; padding-bottom: 48px; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding-top: 8px; padding-bottom: 10px; border-top: 1px solid var(--rule); }
+.tools .side-toggle { margin-top: 0; }
+.tools .seg button { padding: 7px 12px; }
+.add-btn { margin-left: auto; border: 0; border-radius: 999px; background: var(--pen); color: var(--sheet); font-size: 14px; font-weight: 700; padding: 9px 15px; white-space: nowrap; }
+
+/* Book */
+.book-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.pager { display: flex; align-items: center; gap: 10px; }
+.navbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--rule-strong); background: var(--sheet); font-size: 20px; line-height: 1; display: grid; place-items: center; padding: 0; color: var(--ink); }
+.navbtn:disabled { opacity: 0.35; cursor: default; }
+.pg { display: grid; justify-items: center; min-width: 70px; }
+.pg-label { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
+.pg-num { font-family: var(--font-num); font-weight: 700; font-size: 30px; line-height: 1.05; }
+.pg-meta { font-size: 12.5px; color: var(--ink-2); flex: 1 1 150px; }
+.pg-btn { border: 0; background: none; color: inherit; font: inherit; padding: 2px 10px 3px; border-radius: 10px; cursor: pointer; }
+.pg-btn .pg-label::after { content: " \25BE"; letter-spacing: 0; }
+.pg-btn:active { background: var(--rule); }
+.sheet-card.dragging { will-change: transform; }
+.swipe-hint { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-card.enter-r { animation: enter-r 200ms ease-out; }
+  .sheet-card.enter-l { animation: enter-l 200ms ease-out; }
+  @keyframes enter-r { from { transform: translateX(100%); } to { transform: none; } }
+  @keyframes enter-l { from { transform: translateX(-100%); } to { transform: none; } }
+}
+.seg { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--sheet); }
+.seg button { border: 0; background: none; border-radius: 999px; padding: 7px 14px; font-size: 13px; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--sheet); font-weight: 700; }
+.side-toggle { margin-top: 12px; }
+.copy-cta { margin-top: 12px; width: 100%; padding: 13px 16px; font-size: 15px; }
+.book { display: grid; gap: 16px; margin-top: 12px; }
+.sheet-card { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); box-shadow: var(--shadow); min-width: 0; }
+.sheet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 12px 9px; border-bottom: 2px solid var(--ink); }
+.sheet-title { font-size: 15px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; }
+.sheet-sub { font-size: 11px; color: var(--ink-2); text-align: right; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ledger { width: 100%; border-collapse: collapse; font-family: var(--font-num); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ledger th { font-family: var(--font-ui); font-weight: 400; font-size: 10px; line-height: 1.2; color: var(--ink-2); text-align: center; vertical-align: bottom; padding: 5px 3px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule-strong); }
+.ledger thead tr:first-child th { height: 28px; vertical-align: middle; }
+.ledger thead tr:last-child th { height: 48px; }
+.ledger th b { display: block; margin-top: 2px; font-family: var(--font-num); font-weight: 700; font-size: 11px; color: var(--ink); }
+.ledger td, .ledger tbody th { height: 36px; padding: 0 4px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.ledger tr > :last-child { border-right: 0; }
+.ledger .num { text-align: right; }
+.ledger .txt { white-space: normal; line-height: 1.2; }
+.ledger .c-line { width: 38px; min-width: 38px; text-align: center; padding: 0 3px; position: sticky; left: 0; z-index: 1; background: var(--sheet); }
+.ledger .c-mon { min-width: 42px; }
+.ledger .c-date { min-width: 30px; }
+.ledger .c-type { min-width: 58px; }
+.ledger .c-no { min-width: 48px; }
+.ledger .c-cap { min-width: 84px; }
+.ledger .c-crew { min-width: 64px; }
+.ledger .c-duty { min-width: 96px; }
+.ledger .c-val { min-width: 42px; }
+.ledger tr.line { cursor: pointer; }
+.ledger tr.line.todo .v { color: var(--pen); }
+.ledger tr.line.next > * { background: var(--next-bg); }
+.ledger tr.line.next > .c-line { box-shadow: inset 3px 0 0 var(--pen); }
+.ledger tr.line:focus-visible { outline-offset: -2px; }
+.ledger .ln { font-size: 10.5px; color: var(--rule-strong); }
+.ledger tr.add .ln { color: var(--pen); font-weight: 700; }
+.ledger .add-cell { color: var(--pen); font-family: var(--font-ui); font-size: 12px; }
+.ledger tr.tot > * { background: var(--tot-bg); font-weight: 700; }
+.ledger tr.tot .lbl { font-family: var(--font-ui); font-weight: 400; font-size: 11px; color: var(--ink-2); }
+.ledger tr.tot .lblc { font-family: var(--font-ui); font-size: 9px; letter-spacing: 0.04em; color: var(--ink-2); }
+/* The month's totals in red, like totals written in red ink. B/F and C/F stay in normal ink. */
+.ledger tr.tot.sum > *, .ledger tr.tot.sum .lbl, .ledger tr.tot.sum .lblc { color: var(--red-text); }
+.ledger tr.tot.sum .lbl { font-weight: 700; }
+.ledger tr.bf > * { border-bottom: 2px solid var(--rule-strong); }
+.ledger tr.cf > * { border-top: 2px solid var(--ink); }
+.ledger .dash { text-align: center; color: var(--ink-2); font-weight: 400; }
+.yr-tag { display: block; font-size: 9px; line-height: 1; color: var(--ink-2); }
+.tick { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--pen); background: var(--sheet); color: var(--pen); font-family: var(--font-num); font-size: 11px; font-weight: 700; padding: 0; display: inline-grid; place-items: center; vertical-align: middle; }
+.tick[aria-pressed="true"] { background: var(--done-bg); border-color: var(--done-bg); color: var(--done-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .tick.pop { animation: stamp 260ms ease-out; }
+  @keyframes stamp { 0% { transform: scale(0.7); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+}
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12px; color: var(--ink-2); margin-top: 10px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -2px; margin-right: 6px; }
+.legend .l-done { background: var(--done-bg); }
+.legend .l-todo { border: 1.5px solid var(--pen); }
+.book-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.add-inline { display: none; margin-left: auto; }
+@media (max-width: 480px) {
+  .wrap { padding: 0 12px; }
+  .ledger.fly { font-size: 11.5px; }
+  .ledger .c-line { width: 34px; min-width: 34px; padding: 0 2px; }
+  .ledger .c-mon { min-width: 34px; }
+  .ledger .c-date { min-width: 24px; }
+  .ledger .c-type { min-width: 48px; }
+  .ledger .c-no { min-width: 34px; }
+  .ledger .c-cap { min-width: 62px; }
+  .ledger .c-crew { min-width: 46px; }
+  .ledger .c-duty { min-width: 70px; }
+  .ledger .c-val { min-width: 38px; }
+  .tick { width: 26px; height: 26px; }
+}
+@media (max-width: 999.98px) {
+  .book[data-side="flying"] .sheet-card.details, .book[data-side="details"] .sheet-card.flying { display: none; }
+  main[data-view="book"] { overflow-x: hidden; overflow-x: clip; }
+  .swipe-hint { display: inline; }
+}
+@media (min-width: 720px) { .copy-cta { width: auto; } }
+@media (min-width: 1000px) {
+  .side-toggle { display: none; }
+  .wide .fab { display: none; }
+  .wide .add-inline { display: inline-block; }
+  .book { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0; }
+  .sheet-card.flying { border-radius: var(--r-sheet) 0 0 var(--r-sheet); position: relative; }
+  .sheet-card.flying::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 16px; background: linear-gradient(to left, rgba(0, 0, 0, 0.1), transparent); pointer-events: none; }
+  .sheet-card.details { border-radius: 0 var(--r-sheet) var(--r-sheet) 0; border-left-color: var(--rule-strong); }
+}
+
+/* Cards, stats */
+.stack { display: grid; gap: 14px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-card); padding: 16px; }
+.card h2 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.card-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.hint { font-size: 13px; color: var(--ink-2); }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 720px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tile { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-card); padding: 12px; display: grid; gap: 3px; align-content: start; }
+.tile-due { grid-column: 1 / -1; }
+.tile-due.due-warn { border-left: 3px solid var(--status-warn); }
+.tile-due.due-lapsed { border-left: 3px solid var(--status-crit); }
+.t-label { font-size: 12px; color: var(--ink-2); }
+.t-value { font-size: 28px; font-weight: 700; line-height: 1.1; }
+.t-value small { font-size: 13px; font-weight: 400; color: var(--ink-2); margin-left: 5px; }
+.t-sub { font-size: 11.5px; color: var(--ink-2); }
+.pill { display: inline-flex; align-items: center; gap: 5px; justify-self: start; border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 700; margin-top: 4px; }
+.pill-ok { color: var(--done-bg); border: 1px solid currentColor; }
+.pill-warn { background: var(--status-warn); color: #0b0b0b; }
+.pill-bad { background: var(--status-crit); color: #ffffff; }
+.totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0 20px; margin: 0; }
+.totals div { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.totals dt { font-size: 12.5px; color: var(--ink-2); }
+.totals dt b { color: var(--ink); font-family: var(--font-num); margin-right: 6px; }
+.totals dd { margin: 0; font-family: var(--font-num); font-weight: 700; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--rule-strong); background: var(--paper); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.chart { position: relative; }
+.chart svg { display: block; overflow: visible; }
+.chart .gl { stroke: var(--grid); stroke-width: 1; }
+.chart .base { stroke: var(--rule-strong); stroke-width: 1; }
+.chart .ax { fill: var(--ink-2); font-family: var(--font-num); font-size: 10px; }
+.chart .val { fill: var(--ink); font-family: var(--font-num); font-size: 11px; font-weight: 700; }
+.chart .bar { fill: var(--bar); transition: opacity 120ms; }
+.chart .bar.dim { opacity: 0.4; }
+.chart .hit { fill: transparent; outline: none; cursor: default; }
+.chart .hit:focus-visible { stroke: var(--pen); stroke-width: 2; }
+.tip { position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, calc(-100% - 8px)); background: var(--ink); color: var(--sheet); border-radius: 6px; padding: 7px 9px; font-size: 12px; line-height: 1.35; white-space: nowrap; display: grid; }
+.tip strong { font-family: var(--font-num); font-size: 14px; }
+.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data th { font-weight: 400; font-size: 11.5px; color: var(--ink-2); text-align: right; padding: 6px; border-bottom: 1px solid var(--rule-strong); }
+.data td { text-align: right; padding: 7px 6px; border-bottom: 1px solid var(--rule); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.data th:first-child, .data td:first-child { text-align: left; }
+.data tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink); }
+.note { font-size: 12.5px; color: var(--ink-2); }
+.empty-note { font-size: 13px; color: var(--ink-2); padding: 18px 0; }
+
+/* Forms */
+.form { display: grid; gap: 14px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.bf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+@media (min-width: 620px) { .bf-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.field { display: grid; gap: 5px; font-size: 12.5px; color: var(--ink-2); align-content: start; }
+.field b { font-family: var(--font-num); color: var(--ink); margin-right: 4px; }
+.field.asof { max-width: 280px; }
+.looks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 620px) { .looks { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.look { display: grid; gap: 5px; align-content: start; text-align: left; padding: 10px; border: 1px solid var(--rule); border-radius: var(--r-card); background: var(--paper); color: var(--ink); }
+.look[aria-pressed="true"] { border-color: var(--pen); box-shadow: inset 0 0 0 1px var(--pen); }
+.look-sw { display: flex; height: 28px; border-radius: 6px; overflow: hidden; border: 1px solid var(--rule-strong); }
+.look-sw i { flex: 1; }
+.look-name { font-weight: 700; font-size: 14px; }
+.look[aria-pressed="true"] .look-name::after { content: "  \2713"; color: var(--pen); }
+.look-note { font-size: 12px; color: var(--ink-2); line-height: 1.3; }
+.banner.info { border-left-color: var(--pen); }
+.field input { width: 100%; min-width: 0; font-family: var(--font-num); font-size: 16px; padding: 10px 11px; border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.check-row { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+.check-row input { width: 20px; height: 20px; accent-color: var(--pen); }
+.check { font-size: 12.5px; color: var(--ink-2); }
+.err { font-size: 13px; color: var(--bad); }
+.err:empty, .check:empty, .warn:empty { display: none; }
+.warn { font-size: 12.5px; color: var(--ink); background: var(--pen-wash); border-left: 3px solid var(--pen); padding: 8px 10px; border-radius: 4px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 1px solid var(--rule-strong); background: var(--sheet); color: var(--ink); padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: var(--sheet); font-weight: 700; }
+.btn.danger { background: transparent; border-color: var(--bad); color: var(--bad); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.fab { position: fixed; right: 16px; bottom: 18px; z-index: 25; border: 0; border-radius: 999px; background: var(--pen); color: var(--sheet); font-weight: 700; font-size: 15px; padding: 14px 20px; box-shadow: 0 6px 20px rgba(26, 60, 181, 0.28); }
+.banner { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; border: 1px solid var(--rule); border-left: 3px solid var(--bad); background: var(--sheet); border-radius: 6px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 14px; }
+.banner.warn-b { border-left-color: var(--status-warn); }
+.banner.crit-b { border-left-color: var(--status-crit); }
+.ico { display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 12px; font-weight: 700; margin-right: 7px; vertical-align: -3px; }
+.ico-warn { background: var(--status-warn); color: #0b0b0b; }
+.ico-crit { background: var(--status-crit); color: #ffffff; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: var(--ink); color: var(--sheet); padding: 10px 14px; border-radius: 8px; font-size: 13.5px; max-width: calc(100% - 32px); box-shadow: var(--shadow); }
+
+/* Add / edit flight: one-tap sheet */
+.scrim { position: fixed; inset: 0; z-index: 40; background: var(--scrim); }
+.panel { position: fixed; z-index: 41; left: 0; right: 0; bottom: 0; max-height: calc(100% - 12px); display: flex; flex-direction: column; background: var(--sheet); border-radius: 14px 14px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18); }
+@media (min-width: 720px) {
+  .panel { left: 50%; right: auto; bottom: auto; top: 50%; width: 560px; transform: translate(-50%, -50%); border-radius: 12px; max-height: calc(100% - 48px); }
+}
+.panel-head { padding: 13px 16px 9px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.panel-head h2 { font-size: 16px; letter-spacing: 0.04em; }
+.panel-head h2:focus { outline: none; }
+.where { font-size: 12.5px; color: var(--pen); font-family: var(--font-num); text-align: right; }
+.panel-body { overflow-y: auto; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 13px; overscroll-behavior: contain; }
+.pl-body { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.pl { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.pl-item { width: 100%; display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 10px; text-align: left; padding: 10px 12px 10px 6px; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); color: var(--ink); font: inherit; cursor: pointer; }
+.pl-item[aria-current="true"] { border-color: var(--pen); box-shadow: inset 0 0 0 1px var(--pen); }
+.pl-num { font-family: var(--font-num); font-weight: 700; font-size: 20px; line-height: 1.1; text-align: center; }
+.pl-num small { display: block; font-family: var(--font-ui); font-size: 11px; font-weight: 400; color: var(--ink-2); letter-spacing: 0.06em; }
+.pl-main { display: grid; gap: 2px; min-width: 0; }
+.pl-dates { font-family: var(--font-num); font-size: 14.5px; font-weight: 700; }
+.pl-sub { font-size: 12.5px; color: var(--ink-2); }
+.pl-state { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.pl-state.todo { color: var(--pen); border: 1.5px solid var(--pen); }
+.pl-state.done { color: var(--done-ink); background: var(--done-bg); }
+.pl-item.empty .pl-dates { font-family: var(--font-ui); font-weight: 400; color: var(--ink-2); }
+.ledger td.none { text-align: center; color: var(--ink-2); font-family: var(--font-ui); font-size: 12px; padding: 14px 6px; }
+.pg-meta .linkbtn { padding: 2px 0; margin-left: 2px; font-size: 12.5px; }
+.panel-foot { padding: 9px 16px 14px; border-top: 1px solid var(--rule); display: grid; gap: 8px; }
+.panel .chips { gap: 7px; }
+.panel .chip { min-height: 40px; padding: 8px 13px; font-family: var(--font-num); font-size: 14px; }
+.panel .chip.ghost { font-family: var(--font-ui); font-size: 13px; color: var(--ink-2); background: transparent; border-style: dashed; }
+.panel .chip.ghost[aria-pressed="true"] { color: var(--sheet); background: var(--ink); border-style: solid; }
+.panel .chips.hours .chip { min-width: 54px; }
+.q-row { display: grid; gap: 7px; }
+.q-label { font-size: 12px; color: var(--ink-2); }
+.q-two { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+.panel .seg button { padding: 9px 15px; font-size: 14px; }
+.q-other input, .q-input { width: 100%; font-family: var(--font-num); font-size: 16px; padding: 10px 11px; border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.q-more { display: grid; gap: 12px; }
+.linkbtn { justify-self: start; background: none; border: 0; padding: 4px 0; color: var(--pen); font-size: 13px; }
+.q-sum { display: grid; gap: 2px; }
+.q-sum .s1 { font-family: var(--font-num); font-size: 13px; color: var(--ink); }
+.q-sum .s2 { font-family: var(--font-num); font-size: 12px; color: var(--pen); }
+.q-btns { display: flex; gap: 8px; align-items: center; }
+.q-btns .spacer { flex: 1; }
+.q-btns .btn.primary { padding: 12px 22px; font-size: 15px; }
+.confirm { display: grid; gap: 10px; font-size: 14px; }
+
+/* Add flight: step by step, typed */
+.wiz { position: fixed; inset: 0; z-index: 44; background: var(--paper); overflow-y: auto; }
+.wiz-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; padding-bottom: 6px; }
+.wiz-head .btn { padding: 10px 6px; }
+.wiz-step { font-family: var(--font-num); font-size: 12.5px; color: var(--ink-2); text-align: center; }
+.wiz-progress { display: flex; gap: 4px; padding-bottom: 12px; }
+.wiz-progress span { flex: 1; height: 4px; border-radius: 2px; background: var(--rule); }
+.wiz-progress span.on { background: var(--pen); }
+.wiz-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-bottom: 32px; }
+.wiz-ctx { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.wiz-ctx .linkbtn { font-family: var(--font-num); font-size: 14px; padding: 8px 0; }
+.wiz-sofar { font-family: var(--font-num); font-size: 13.5px; color: var(--ink-2); }
+.wiz-q { font-size: 26px; font-weight: 700; line-height: 1.15; }
+.wiz-row { display: flex; gap: 8px; align-items: stretch; min-width: 0; }
+.wiz-row input { flex: 1; min-width: 0; font-family: var(--font-num); font-size: 26px; padding: 10px 14px; border: 2px solid var(--pen); border-radius: 10px; background: var(--sheet); color: var(--ink); }
+.wiz-row .btn { min-width: 92px; font-size: 16px; border-radius: 10px; }
+.wiz .chips .chip { min-height: 44px; padding: 9px 15px; font-family: var(--font-num); font-size: 16px; }
+.wiz .seg button { padding: 9px 15px; font-size: 14px; }
+.wiz .q-cols { font-family: var(--font-num); font-size: 13px; color: var(--pen); }
+.wiz-date { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--pen); font-family: var(--font-num); font-size: 15px; cursor: pointer; }
+.wiz-date input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; font-size: 16px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.panel-body > .seg { justify-self: start; }
+.date-btn { position: relative; justify-self: start; display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px 14px; border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--paper); color: var(--ink); font-family: var(--font-num); font-size: 14px; cursor: pointer; }
+.date-btn input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; font-size: 16px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.date-btn:focus-within { outline: 2px solid var(--pen); outline-offset: 2px; }
+.wiz-date:focus-within { outline: 2px solid var(--pen); outline-offset: 2px; border-radius: 4px; }
+.toast { display: flex; align-items: center; gap: 14px; width: max-content; }
+.toast-btn { border: 1px solid var(--rule-strong); background: transparent; color: var(--sheet); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; }
+
+/* Copy mode */
+.copy { position: fixed; inset: 0; z-index: 45; background: var(--paper); display: flex; flex-direction: column; }
+.copy-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.copy-head h2 { font-size: 15px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.copy-head h2:focus { outline: none; }
+.brand h1, .sheet-title, .card h2, .panel-head h2, .copy-head h2, .wiz-q { font-family: var(--font-head); }
+.copy-prog { font-family: var(--font-num); font-size: 12.5px; color: var(--ink-2); }
+.copy-body { flex: 1; overflow-y: auto; padding-top: 14px; padding-bottom: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
+.copy-where { font-family: var(--font-num); font-size: 22px; font-weight: 700; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.copy-where .pill { font-family: var(--font-ui); }
+.copy-side { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-card); padding: 12px 14px; display: grid; gap: 10px; }
+.copy-side h3 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; display: flex; justify-content: space-between; gap: 8px; }
+.copy-side h3 span { color: var(--ink-2); font-weight: 400; letter-spacing: 0.04em; text-transform: none; }
+.copy-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; margin: 0; }
+.copy-grid .half { grid-column: span 2; }
+.copy-grid .full { grid-column: 1 / -1; }
+.copy-grid dt, .copy-cols dt { font-size: 11px; color: var(--ink-2); }
+.copy-grid dd { margin: 2px 0 0; font-family: var(--font-num); font-size: 19px; font-weight: 700; color: var(--pen); overflow-wrap: anywhere; }
+.copy-grid .blank { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--ink-2); }
+.copy-cols { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 0; text-align: center; }
+.copy-cols > div { border: 1px solid var(--rule); border-radius: 6px; padding: 6px 1px; background: var(--paper); }
+.copy-cols dd { margin: 3px 0 0; font-family: var(--font-num); font-size: 15px; font-weight: 700; color: var(--pen); }
+.copy-cols .nil dd { color: var(--rule-strong); font-weight: 400; }
+.copy-tot { display: grid; gap: 6px; }
+.copy-tot .copy-cols dd { font-size: 12.5px; color: var(--ink); }
+.copy-tot-label { font-size: 13px; font-weight: 700; }
+.copy-foot { display: flex; gap: 10px; padding-top: 10px; padding-bottom: 14px; border-top: 1px solid var(--rule); }
+.copy-foot .big { flex: 1; padding: 14px; font-size: 15px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-row">
+    <div class="brand">
+      <h1>Flight Logbook</h1>
+      <span class="sub" id="hdr-sub">Opening…</span>
+    </div>
+    <span class="sync" id="sync" data-s="wait" role="status">Connecting</span>
+  </div>
+  <nav class="wrap tabs" aria-label="Sections">
+    <button class="tab" type="button" data-act="view" data-view="book">Book</button>
+    <button class="tab" type="button" data-act="view" data-view="stats">Stats</button>
+    <button class="tab" type="button" data-act="view" data-view="setup">Setup</button>
+  </nav>
+  <div class="wrap tools" id="tools" hidden></div>
+</header>
+<main id="main" class="wrap"></main>
+<div id="sheet-root"></div>
+<div id="copy-root"></div>
+<div id="wiz-root"></div>
+<div id="months-root"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<datalist id="dl-type"></datalist>
+
+<script>
+/*LOGIC-START*/
+const Logic = (() => {
+  "use strict";
+  // Used columns of the Details page, in book order. (2), (5), (9)-(13) stay blank.
+  const COLS = ["c1", "c3", "c4", "c6", "c7", "c8", "c14"];
+  const COL_INFO = {
+    c1: { n: "(1)", name: "Day 1st Pilot" },
+    c3: { n: "(3)", name: "Day Dual" },
+    c4: { n: "(4)", name: "Night 1st Pilot" },
+    c6: { n: "(6)", name: "Night Dual" },
+    c7: { n: "(7)", name: "Total" },
+    c8: { n: "(8)", name: "Captain" },
+    c14: { n: "(14)", name: "F/A-18" },
+  };
+  const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const STEP = 1024;
+
+  // All arithmetic is done in whole tenths of an hour, so totals never drift.
+  const toT = (h) => { const n = Number(h); return Number.isFinite(n) ? Math.round(n * 10) : 0; };
+  const fmtT = (t) => (t / 10).toFixed(1);
+  const fmtBlank = (t) => (t ? fmtT(t) : "");
+  const fmtTick = (v, step) => (step % 10 === 0 ? String(v / 10) : (v / 10).toFixed(1));
+  const isHornet = (type) => /F\s*\/?\s*A\s*-?\s*18/i.test(String(type || ""));
+  const captainOf = (f) => (f.role === "dual" ? String(f.captain || "") : "SELF");
+  const crewOf = (f) => (f.role === "dual" ? "SELF" : "");
+
+  function zero() { const o = {}; for (const c of COLS) o[c] = 0; return o; }
+  function add(a, b) { const o = {}; for (const c of COLS) o[c] = (a[c] || 0) + (b[c] || 0); return o; }
+
+  // Solo: (1)/(4) and Captain (8). Dual (anyone else aboard): (3)/(6), no Captain time.
+  function rowCols(f) {
+    const d = toT(f.day), n = toT(f.night), tot = d + n;
+    const solo = f.role !== "dual";
+    return {
+      c1: solo ? d : 0, c3: solo ? 0 : d, c4: solo ? n : 0, c6: solo ? 0 : n,
+      c7: tot, c8: solo ? tot : 0, c14: isHornet(f.type) ? tot : 0,
+    };
+  }
+  function sumRows(rows) { return rows.reduce((acc, r) => add(acc, rowCols(r)), zero()); }
+  function bfTenths(s) { const bf = (s && s.bf) || {}; const o = {}; for (const c of COLS) o[c] = toT(bf[c]); return o; }
+
+  // Book order: by date; flights on the same date keep the order they were added in.
+  const posOf = (r) => (Number.isFinite(r.pos) ? r.pos : 1e15 + (Number(r.createdAt) || 0));
+  function sortRows(list) {
+    return list.slice().sort((a, b) =>
+      (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || posOf(a) - posOf(b) ||
+      (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+  // A new (or re-dated) flight goes after every flight already logged on the same date.
+  function nextPos(rows, excludeId) {
+    let max = 0;
+    for (const r of rows) if (r.id !== excludeId && Number.isFinite(r.pos)) max = Math.max(max, r.pos);
+    return Math.floor(max / STEP) * STEP + STEP;
+  }
+
+  // Month keys look like "2026-11"; they sort and compare as plain strings.
+  const monthKey = (iso) => String(iso || "").slice(0, 7);
+  function shiftMonth(key, n) {
+    const y = Number(key.slice(0, 4)), m0 = Number(key.slice(5, 7)) - 1 + n;
+    const yy = y + Math.floor(m0 / 12), mm = ((m0 % 12) + 12) % 12;
+    return `${yy}-${String(mm + 1).padStart(2, "0")}`;
+  }
+  // The Book, one month at a time, for every month from `fromKey` to `toKey`, empty months too:
+  // B/F = total before the month, the month itself, C/F = B/F + the month (= next month's B/F).
+  // Rows must be in book order; flights before `fromKey` count into the first B/F.
+  function buildMonths(rows, s, fromKey, toKey) {
+    const out = [];
+    let carry = bfTenths(s), i = 0;
+    while (i < rows.length && monthKey(rows[i].date) < fromKey) { carry = add(carry, rowCols(rows[i])); i++; }
+    for (let k = fromKey, n = 0; k <= toKey && n < 2400; k = shiftMonth(k, 1), n++) {
+      const list = [];
+      while (i < rows.length && monthKey(rows[i].date) === k) { list.push(rows[i]); i++; }
+      const sum = sumRows(list), m = Number(k.slice(5, 7));
+      out.push({ key: k, y: Number(k.slice(0, 4)), m, month: MONTHS[m - 1], rows: list, before: carry, sum, toDate: add(carry, sum), first: n === 0 });
+      carry = add(carry, sum);
+    }
+    return out;
+  }
+  // Copy to book: the flights not yet copied, oldest first.
+  const copyList = (rows) => rows.filter((r) => !r.copied).map((r) => r.id);
+
+  function parts(iso) {
+    const [y, m, d] = String(iso || "").split("-").map(Number);
+    return { y, m, d, month: MONTHS[m - 1] || "", day: Number.isFinite(d) ? String(d) : "" };
+  }
+  function validISO(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ""))) return false;
+    const { y, m, d } = parts(iso);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return y >= 1950 && y <= 2100 && dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  }
+  const dayNum = (iso) => { const { y, m, d } = parts(iso); return Math.round(Date.UTC(y, m - 1, d) / 86400000); };
+  const isoOf = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  const addDays = (iso, n) => {
+    const { y, m, d } = parts(iso);
+    const dt = new Date(Date.UTC(y, m - 1, d + n));
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+  };
+  const longDate = (iso) => { const p = parts(iso); return `${p.d} ${p.month} ${p.y}`; };
+  const shortDate = (iso) => { const p = parts(iso); return `${p.d} ${p.month}`; };
+
+  function parseHours(str, maxTenths) {
+    const s = String(str == null ? "" : str).trim().replace(",", ".");
+    if (s === "") return { ok: true, t: 0, blank: true };
+    if (/^\d*\.\d{2,}$/.test(s)) return { ok: false, error: "use one decimal place, like 1.4" };
+    if (!/^\d*\.?\d?$/.test(s) || s === ".") return { ok: false, error: "use a number like 1.4" };
+    const t = Math.round(parseFloat(s) * 10);
+    if (!Number.isFinite(t)) return { ok: false, error: "use a number like 1.4" };
+    if (t > maxTenths) return { ok: false, error: `${fmtT(maxTenths)} at most` };
+    return { ok: true, t };
+  }
+
+  function recency(rows, today) {
+    const T = dayNum(today);
+    let last = null, lastNight = null, first = null, t30 = 0, n30 = 0, t90 = 0, n90 = 0;
+    for (const r of rows) {
+      if (!validISO(r.date)) continue;
+      const tot = toT(r.day) + toT(r.night);
+      if (tot <= 0) continue;
+      const age = T - dayNum(r.date);
+      if (age < 0) continue; // dated in the future
+      if (!first || r.date < first.date) first = r;
+      const later = (a) => !a || r.date > a.date || (r.date === a.date && posOf(r) > posOf(a));
+      if (later(last)) last = r;
+      if (toT(r.night) > 0 && later(lastNight)) lastNight = r;
+      if (age < 30) { t30 += tot; n30++; }
+      if (age < 90) { t90 += tot; n90++; }
+    }
+    return {
+      last, lastNight, first,
+      sinceLast: last ? T - dayNum(last.date) : null,
+      sinceNight: lastNight ? T - dayNum(lastNight.date) : null,
+      t30, n30, t90, n90,
+      coverage: first ? T - dayNum(first.date) : 0,
+    };
+  }
+
+  // Night currency: lapses after `nightLimit` days (default 45) without a night flight; warn in the last 7 days.
+  // The Setup date is used until a later night flight is logged in the app.
+  function nightStatus(rows, s, today) {
+    const limit = Math.max(1, Math.round(Number(s && s.nightLimit) || 45));
+    let last = null, source = null;
+    for (const r of rows) {
+      if (toT(r.night) > 0 && validISO(r.date) && r.date <= today && (!last || r.date > last)) last = r.date;
+    }
+    if (last) source = "app";
+    const before = s && validISO(s.lastNightBefore) && s.lastNightBefore <= today ? s.lastNightBefore : null;
+    if (before && (!last || before > last)) { last = before; source = "setup"; }
+    if (!last) return { state: "none", limit };
+    const since = dayNum(today) - dayNum(last);
+    const left = limit - since;
+    const until = addDays(last, limit);
+    const state = left < 0 ? "lapsed" : left <= 7 ? "warn" : "ok";
+    return { state, limit, last, source, since, left, until };
+  }
+
+  const normTail = (s) => String(s || "").replace(/\s+/g, "").toUpperCase();
+  function findDuplicate(rows, cand, excludeId) {
+    const t = toT(cand.day) + toT(cand.night);
+    const ct = normTail(cand.tail);
+    return rows.find((r) => r.id !== excludeId && r.date === cand.date && toT(r.day) + toT(r.night) === t &&
+      (!ct || !normTail(r.tail) || normTail(r.tail) === ct)) || null;
+  }
+
+  // One-tap choices learned from recent flights: most used first, ties go to the most recent.
+  function topValues(rows, get, k) {
+    const m = new Map();
+    rows.slice(-120).forEach((r, i) => {
+      const raw = get(r);
+      const v = String(raw == null ? "" : raw).trim();
+      if (!v || v === "SELF") return;
+      const o = m.get(v) || { n: 0, last: -1 };
+      o.n++; o.last = i;
+      m.set(v, o);
+    });
+    return [...m.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last).slice(0, k).map((e) => e[0]);
+  }
+  function hourChips(rows, k) {
+    k = k || 8;
+    const top = topValues(rows, (r) => { const t = toT(r.day) + toT(r.night); return t > 0 ? String(t) : ""; }, k).map(Number);
+    for (const d of [12, 13, 11, 14, 10, 15, 9, 16, 8]) { if (top.length >= k) break; if (!top.includes(d)) top.push(d); }
+    return top.sort((a, b) => a - b);
+  }
+  // Shortcuts for one hours field (day or night): your most used values, topped up with defaults, sorted.
+  function tenthChips(rows, get, k, defaults) {
+    const top = topValues(rows, (r) => { const t = get(r); return t > 0 ? String(t) : ""; }, k).map(Number);
+    for (const d of defaults || []) { if (top.length >= k) break; if (!top.includes(d)) top.push(d); }
+    return top.sort((a, b) => a - b);
+  }
+
+  // Typed answers: reuse the spelling already in the logbook ("bfm" becomes "BFM").
+  function matchKnown(value, list) {
+    const n = String(value == null ? "" : value).trim().replace(/\s+/g, " ");
+    if (!n) return "";
+    const key = n.toUpperCase();
+    const hit = (list || []).find((x) => String(x).trim().replace(/\s+/g, " ").toUpperCase() === key);
+    return hit || n;
+  }
+  // Shortcuts while typing: values starting with what was typed first, then values containing it.
+  function filterChips(list, typed) {
+    const t = String(typed == null ? "" : typed).trim().toUpperCase();
+    const all = (list || []).map(String);
+    if (!t) return all.slice();
+    const starts = all.filter((x) => x.toUpperCase().startsWith(t));
+    const has = all.filter((x) => !x.toUpperCase().startsWith(t) && x.toUpperCase().includes(t));
+    return starts.concat(has);
+  }
+
+  function monthly(rows, year) {
+    const out = MONTHS.map((label, i) => ({ i, label, n: 0, day: 0, night: 0, total: 0 }));
+    for (const r of rows) {
+      const p = parts(r.date);
+      if (p.y !== year || !out[p.m - 1]) continue;
+      const o = out[p.m - 1], d = toT(r.day), n = toT(r.night);
+      o.n++; o.day += d; o.night += n; o.total += d + n;
+    }
+    return out;
+  }
+  function yearly(rows) {
+    const map = new Map();
+    for (const r of rows) {
+      const p = parts(r.date);
+      if (!p.y) continue;
+      const o = map.get(p.y) || { year: p.y, n: 0, day: 0, night: 0, total: 0 };
+      const d = toT(r.day), n = toT(r.night);
+      o.n++; o.day += d; o.night += n; o.total += d + n;
+      map.set(p.y, o);
+    }
+    return [...map.values()].sort((a, b) => b.year - a.year);
+  }
+  function niceScale(maxT, target) {
+    target = target || 4;
+    if (!(maxT > 0)) return { step: 5, max: 10 };
+    const raw = maxT / target;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    const mult = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+    let step = Math.max(1, Math.round(mult * mag));
+    if (maxT >= 40 && step % 10 !== 0) step = Math.ceil(step / 10) * 10;
+    return { step, max: Math.ceil(maxT / step) * step };
+  }
+
+  const safeText = (v) => { const s = String(v == null ? "" : v); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; };
+  const csvCell = (v) => { const s = String(v == null ? "" : v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  function toCSV(rows, s) {
+    const head = ["Year", "Month", "Date", "Type & Mark", "No.", "Captain or 1st Pilot", "Co-Pilot / Pupil or Crew", "Duty"]
+      .concat(COLS.map((c) => COL_INFO[c].n + " " + COL_INFO[c].name), ["Copied to book", "ISO date"]);
+    const blank7 = ["", "", "", "", "", "", ""];
+    const out = [head];
+    const bf = bfTenths(s);
+    out.push(blank7.concat([s && validISO(s.asOf) ? "Totals as of " + longDate(s.asOf) : "Totals before the app"], COLS.map((c) => fmtT(bf[c])), ["", ""]));
+    rows.forEach((r) => {
+      const p = parts(r.date), c = rowCols(r);
+      out.push([p.y, p.month, p.day, safeText(r.type), safeText(r.tail), safeText(captainOf(r)), safeText(crewOf(r)), safeText(r.duty)]
+        .concat(COLS.map((k) => (c[k] ? fmtT(c[k]) : "")), [r.copied ? "Yes" : "No", r.date]));
+    });
+    const end = add(bf, sumRows(rows));
+    out.push(blank7.concat(["Total to date"], COLS.map((c) => fmtT(end[c])), ["", ""]));
+    return out.map((line) => line.map(csvCell).join(",")).join("\r\n");
+  }
+
+  return {
+    COLS, COL_INFO, MONTHS, toT, fmtT, fmtBlank, fmtTick, isHornet, captainOf, crewOf, zero, add, rowCols, sumRows,
+    bfTenths, posOf, sortRows, nextPos, monthKey, shiftMonth, buildMonths, copyList,
+    parts, validISO, dayNum, isoOf, addDays, longDate, shortDate, parseHours, recency, nightStatus,
+    findDuplicate, topValues, hourChips, tenthChips, matchKnown, filterChips, monthly, yearly, niceScale, toCSV,
+  };
+})();
+/*LOGIC-END*/
+</script>
+
+<script>
+(() => {
+  "use strict";
+  const L = Logic;
+  const VIEWS = ["book", "stats", "setup"];
+  const main = document.getElementById("main");
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const todayISO = () => L.isoOf(new Date());
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  const state = {
+    conn: "connecting", // connecting | ready | unavailable | error
+    synced: false, stale: false, dead: null,
+    settings: null, years: {}, serverDocs: new Set(), rows: [],
+    view: "book", month: null, side: "flying", statsYear: null,
+    pending: 0, setupDirty: false,
+  };
+  let coll = null, downloads = null, lastSnap = null, unsub = null, loadTimer = null, toastTimer = null;
+
+  /* ---------------- Themes ---------------- */
+  // sw = swatch colors shown in Setup: background, page, ink, pen (still to write), copied.
+  const LOOKS = [
+    { id: "ledger", name: "Ledger", note: "The original. Follows your phone's light or dark mode.", sw: ["#e4eceb", "#f8fbfa", "#0f1c1b", "#1a3cb5", "#13782f"] },
+    { id: "paper", name: "Logbook Paper", note: "Ivory pages, dark ink, ballpoint blue.", sw: ["#ece2cb", "#fbf6ea", "#2a2118", "#1f3f8f", "#2f6b3a"],
+      font: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,700&display=swap" },
+    { id: "cockpit", name: "Cockpit", note: "Black glass, green and cyan, like an MFD.", sw: ["#040706", "#09100c", "#b9f6c8", "#3fe6ff", "#36d46c"] },
+    { id: "night", name: "Night Ops", note: "Dim red on black, kind to night vision.", sw: ["#000000", "#0a0101", "#e04848", "#ff6a5c", "#b8312a"] },
+    { id: "desert", name: "Desert", note: "Sand, olive drab and stencil headings.", sw: ["#e6dbc2", "#f6f0e2", "#2a2a1e", "#8c4a12", "#4b5d23"],
+      font: "https://fonts.googleapis.com/css2?family=Barlow:wght@400;700&family=Share+Tech+Mono&family=Stardos+Stencil:wght@400;700&display=swap" },
+    { id: "clean", name: "Clean", note: "iPhone style. Follows your phone's light or dark mode.", sw: ["#f2f2f7", "#ffffff", "#1c1c1e", "#007aff", "#34c759"] },
+    { id: "sunlight", name: "Sunlight", note: "High contrast, easy to read in bright sun.", sw: ["#ffffff", "#efefef", "#000000", "#0033cc", "#00701f"],
+      font: "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" },
+  ];
+  const lookOf = (id) => LOOKS.find((x) => x.id === id) || LOOKS[0];
+  let look = lookOf(document.documentElement.getAttribute("data-look") || "ledger").id;
+  // Applies a theme now; with save, also stores it in settings so other devices follow.
+  function applyLook(id, save) {
+    const lk = lookOf(id);
+    look = lk.id;
+    const root = document.documentElement;
+    if (lk.id === "ledger") root.removeAttribute("data-look"); else root.setAttribute("data-look", lk.id);
+    let link = document.getElementById("look-font");
+    if (lk.font) {
+      if (!link) { link = document.createElement("link"); link.id = "look-font"; link.rel = "stylesheet"; document.head.appendChild(link); }
+      if (link.getAttribute("href") !== lk.font) link.setAttribute("href", lk.font);
+    } else if (link) link.remove();
+    try { localStorage.setItem("logbook.look", lk.id); } catch (e) { /* optional */ }
+    document.querySelectorAll(".look").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.look === lk.id)));
+    if (save && state.settings && state.synced && (state.settings.look || "ledger") !== lk.id) {
+      const obj = Object.assign({}, state.settings, { look: lk.id, updatedAt: Date.now() });
+      state.settings = obj;
+      writeSettings(obj);
+    }
+  }
+  applyLook(look, false);
+  const lookCard = () => `<section class="card stack">
+        <h2>Theme</h2>
+        <p class="hint">Tap one to try it. It changes the look only; your logbook stays the same.</p>
+        <div class="looks">${LOOKS.map((l) => `<button type="button" class="look" data-act="look" data-look="${l.id}" aria-pressed="${l.id === look}">` +
+          `<span class="look-sw" aria-hidden="true">${l.sw.map((c) => `<i data-c="${c}"></i>`).join("")}</span>` +
+          `<span class="look-name">${l.name}</span><span class="look-note">${l.note}</span></button>`).join("")}</div>
+      </section>`;
+  // Swatch colors are set through the DOM (no inline style attributes).
+  function paintSwatches() { document.querySelectorAll(".look-sw i[data-c]").forEach((i) => { i.style.background = i.dataset.c; }); }
+  const created = new Set();
+  const queues = {};
+  let sheet = null, copyRun = null, wiz = null, lastFocus = null, monthsOpen = false;
+
+  try { const sd = localStorage.getItem("logbook.side"); if (sd === "flying" || sd === "details") state.side = sd; } catch (e) { /* optional */ }
+
+  /* ---------------- Data ----------------
+     Private store: data/users/<you>/ holds "settings" + one document per year ("y2026") with that year's flights.
+     Each change merges only the flights it touches, so two devices never overwrite each other's lines. */
+  function ingest(snap) {
+    let settings = null;
+    const years = {}, docs = new Set();
+    for (const d of snap.docs) {
+      if (!d.exists) continue;
+      docs.add(d.id);
+      const data = d.data() || {};
+      if (d.id === "settings") settings = data;
+      else if (/^y\d{4}$/.test(d.id)) years[d.id] = data;
+    }
+    state.settings = settings;
+    if (settings && settings.look && settings.look !== look) applyLook(settings.look, false);
+    state.years = years;
+    state.serverDocs = docs;
+    recompute();
+  }
+  function recompute() {
+    const byId = new Map();
+    for (const [docId, y] of Object.entries(state.years)) {
+      const fl = y && y.flights && typeof y.flights === "object" ? y.flights : {};
+      for (const [id, f] of Object.entries(fl)) {
+        if (!f || typeof f !== "object") continue;
+        const cand = Object.assign({}, f, { id, _doc: docId });
+        const prev = byId.get(id);
+        const cu = Number(cand.updatedAt) || 0, pu = prev ? Number(prev.updatedAt) || 0 : -1;
+        if (!prev || cu > pu || (cu === pu && prev.deleted && !cand.deleted)) byId.set(id, cand);
+      }
+    }
+    const rows = [];
+    for (const f of byId.values()) if (!f.deleted && L.validISO(f.date)) rows.push(f);
+    state.rows = L.sortRows(rows);
+  }
+  function applyLocal(docId, patch) {
+    const cur = state.years[docId] || { kind: "year", year: Number(docId.slice(1)), flights: {} };
+    const flights = Object.assign({}, cur.flights || {});
+    for (const [id, p] of Object.entries(patch)) flights[id] = Object.assign({}, flights[id] || {}, p);
+    state.years = Object.assign({}, state.years, { [docId]: Object.assign({}, cur, { flights }) });
+    recompute();
+  }
+  function enqueue(key, fn) {
+    state.pending++;
+    renderStatus();
+    const run = (queues[key] || Promise.resolve()).then(() => fn(), () => fn());
+    queues[key] = run.catch(() => {});
+    return run.finally(() => { state.pending--; renderStatus(); });
+  }
+  async function retryOnce(fn) {
+    try { return await fn(); } catch (e) {
+      if (e && e.code === "unavailable") {
+        await new Promise((r) => setTimeout(r, 300 + Math.random() * 700));
+        return fn();
+      }
+      throw e;
+    }
+  }
+  function writeYear(docId, patch) {
+    if (!coll) return Promise.resolve(false);
+    return enqueue(docId, async () => {
+      const ref = coll.doc(docId);
+      let exists = state.serverDocs.has(docId) || created.has(docId);
+      if (!exists) { const s = await retryOnce(() => ref.get()); exists = !!s.exists; }
+      if (exists) await retryOnce(() => ref.update({ flights: patch }));
+      else { await retryOnce(() => ref.set({ kind: "year", year: Number(docId.slice(1)), flights: patch })); created.add(docId); }
+    }).then(() => true, (e) => { failed(e); return false; });
+  }
+  function writeSettings(obj) {
+    if (!coll) return Promise.resolve(false);
+    return enqueue("settings", () => retryOnce(() => coll.doc("settings").set(obj))).then(() => true, (e) => { failed(e); return false; });
+  }
+  function failed(e) {
+    const code = e && e.code;
+    const msg = code === "quota_exceeded" ? "Couldn't save: your logbook storage is full."
+      : code === "resource_exhausted" ? "Too many changes at once. Wait a moment, then try again."
+      : ["revoked", "not_granted", "capability_disabled", "capability_removed"].includes(code) ? "Saving isn't allowed in this view."
+      : code === "invalid_argument" ? "Couldn't save that change."
+      : "Couldn't save. Check your connection and try again.";
+    toast(msg);
+    if (lastSnap) ingest(lastSnap);
+    render();
+  }
+
+  /* ---------------- Connection ---------------- */
+  async function connect() {
+    const api = window.claude;
+    if (!api || typeof api.use !== "function") { state.conn = "unavailable"; render(); return; }
+    let db = null, user = null;
+    try { [db, user] = await Promise.all([api.use("db"), api.use("user")]); } catch (e) { db = null; }
+    if (!db) { state.conn = "unavailable"; render(); return; }
+    let uid = null;
+    try { uid = user ? await user.id() : null; } catch (e) { uid = null; }
+    if (!uid) { state.conn = "unavailable"; render(); return; }
+    try { coll = db.collection("data/users/" + uid); } catch (e) { state.conn = "unavailable"; render(); return; }
+    subscribe();
+    Promise.resolve(api.use("downloads")).then((d) => {
+      downloads = d || null;
+      if (state.view === "setup" && !state.setupDirty) renderMain();
+    }, () => {});
+  }
+  function subscribe() {
+    if (unsub) { try { unsub(); } catch (e) { /* already closed */ } }
+    state.dead = null;
+    state.stale = false;
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => { if (!state.synced) { state.stale = true; render(); } }, 10000);
+    unsub = coll.onSnapshot((snap) => {
+      lastSnap = snap;
+      ingest(snap);
+      state.conn = "ready";
+      if (!snap.metadata || !snap.metadata.fromCache) { state.synced = true; state.stale = false; clearTimeout(loadTimer); }
+      render();
+    }, (err) => {
+      clearTimeout(loadTimer);
+      state.dead = (err && err.code) || "unavailable";
+      state.synced = false;
+      if (state.conn !== "ready") state.conn = "error";
+      render();
+    });
+  }
+
+  /* ---------------- Helpers ---------------- */
+  function nextTodoId() { const r = state.rows.find((x) => !x.copied); return r ? r.id : null; }
+  const thisMonthKey = () => L.monthKey(todayISO());
+  // The setup totals are "as of" this date: they include every flight up to the end of that day.
+  // Flights in the app come after it.
+  const asOfDate = () => (state.settings && L.validISO(state.settings.asOf) ? state.settings.asOf : "");
+  const firstAllowed = () => (asOfDate() ? L.addDays(asOfDate(), 1) : "");
+  const coveredByTotals = (date) => !!asOfDate() && date <= asOfDate();
+  const coveredMsg = () => `Your setup totals already include flights up to ${L.longDate(asOfDate())}. Pick a later date.`;
+  // Every month from the first one in the app (or this month) up to this month, or further
+  // ahead when a later month is being viewed. Empty months are included.
+  function bookMonths() {
+    const now = thisMonthKey(), rows = state.rows;
+    const firstFlight = rows.length ? L.monthKey(rows[0].date) : now;
+    const lastFlight = rows.length ? L.monthKey(rows[rows.length - 1].date) : now;
+    let first = firstFlight < now ? firstFlight : now;
+    const start = firstAllowed() ? L.monthKey(firstAllowed()) : "";
+    if (start && start < first) first = start;
+    let last = lastFlight > now ? lastFlight : now;
+    if (state.month && state.month > last) last = state.month;
+    return L.buildMonths(rows, state.settings, first, last);
+  }
+  // The Book opens on this month; state.month is the month being viewed.
+  function currentMonthIndex(months) {
+    const want = state.month || thisMonthKey();
+    const k = months.findIndex((m) => m.key === want);
+    return k >= 0 ? k : want < months[0].key ? 0 : months.length - 1;
+  }
+  function guard() {
+    if (!state.synced) { toast("Still connecting to your logbook. Try again in a moment."); return false; }
+    return true;
+  }
+  function toast(msg, action) {
+    const el = document.getElementById("toast");
+    el.innerHTML = "";
+    const span = document.createElement("span");
+    span.textContent = msg;
+    el.appendChild(span);
+    if (action) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "toast-btn";
+      b.textContent = action.label;
+      b.addEventListener("click", () => { el.hidden = true; clearTimeout(toastTimer); action.fn(); });
+      el.appendChild(b);
+    }
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, action ? 6000 : 2800);
+  }
+  function focusEl(el) { if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } } }
+  function lockScroll() { document.body.style.overflow = sheet || copyRun || wiz || monthsOpen ? "hidden" : ""; }
+  function go(view) {
+    if (!VIEWS.includes(view)) view = "book";
+    if (state.view === "setup" && view !== "setup") state.setupDirty = false;
+    state.view = view;
+    try { if (location.hash !== "#" + view) location.hash = view; } catch (e) { /* hash not available */ }
+    render();
+    try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+  }
+
+  /* ---------------- Render ---------------- */
+  function render() { renderHeader(); renderMain(); renderStatus(); }
+  function renderHeader() {
+    document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.view === state.view ? "page" : "false"));
+    document.body.classList.toggle("wide", state.view === "book");
+    let t = "";
+    if (state.conn === "connecting") t = "Opening your logbook…";
+    else if (state.conn !== "ready") t = "Not connected";
+    else if (!state.settings) t = "Setup needed";
+    else {
+      const todo = state.rows.filter((r) => !r.copied).length;
+      t = !state.rows.length ? "No flights yet" : todo ? `${plural(todo, "flight", "flights")} to copy into the book` : "All flights copied into the book";
+    }
+    document.getElementById("hdr-sub").textContent = t;
+    renderTools();
+  }
+  function renderTools() {
+    const el = document.getElementById("tools");
+    const show = state.view === "book" && state.conn === "ready" && !!state.settings;
+    el.hidden = !show;
+    if (!show) { el.innerHTML = ""; return; }
+    el.innerHTML = `<div class="seg side-toggle" role="group" aria-label="Side of the book">
+        <button type="button" data-act="side" data-side="flying" aria-pressed="${state.side === "flying"}">Flying page</button>
+        <button type="button" data-act="side" data-side="details" aria-pressed="${state.side === "details"}">Details page</button>
+      </div>
+      <button class="add-btn" type="button" data-act="add">+ Add flight</button>`;
+  }
+  function renderStatus() {
+    const el = document.getElementById("sync");
+    let s = "wait", t = "Connecting";
+    if (state.conn === "unavailable" || state.conn === "error" || state.dead) { s = "bad"; t = "Not syncing"; }
+    else if (state.pending > 0) { s = "saving"; t = "Saving…"; }
+    else if (state.stale) { s = "bad"; t = "No connection"; }
+    else if (state.synced) { s = "ok"; t = "Saved"; }
+    el.dataset.s = s;
+    el.textContent = t;
+  }
+  function renderMain() {
+    if (state.view === "setup" && state.setupDirty) return;
+    main.dataset.view = state.view;
+    const keep = {};
+    main.querySelectorAll(".table-wrap[data-k]").forEach((el) => { keep[el.dataset.k] = el.scrollLeft; });
+    let html = "";
+    if (state.stale && !state.synced) html += `<div class="banner"><span>Can't reach your logbook yet. It will load when the connection is back.</span></div>`;
+    if (state.dead && state.conn === "ready") {
+      html += `<div class="banner"><span>Live sync stopped, so new changes can't be saved.</span>${state.dead === "unavailable" ? '<button class="btn" type="button" data-act="reconnect">Reconnect</button>' : ""}</div>`;
+    }
+    if (state.conn === "connecting") {
+      main.innerHTML = html + `<p class="empty-note">Opening your logbook…</p>`;
+      return;
+    }
+    if (state.conn === "unavailable") {
+      main.innerHTML = `<div class="card stack"><h2>Sign-in needed</h2><p class="hint">This logbook is saved in your Claude account, so it only opens inside Claude while you're signed in.</p></div>`;
+      return;
+    }
+    if (state.conn === "error") {
+      main.innerHTML = `<div class="card stack"><h2>Can't open your logbook</h2><p class="hint">Your saved logbook can't be reached from here right now.</p>${state.dead === "unavailable" ? '<div class="actions"><button class="btn primary" type="button" data-act="reconnect">Try again</button></div>' : ""}</div>`;
+      return;
+    }
+    if (state.view === "stats") html += statsHTML();
+    else if (state.view === "setup") html += setupHTML();
+    else html += bookHTML();
+    main.innerHTML = html;
+    if (state.view === "stats") drawChart();
+    if (state.view === "setup") { updateSetupCheck(); paintSwatches(); }
+    main.querySelectorAll(".table-wrap[data-k]").forEach((el) => { if (keep[el.dataset.k]) el.scrollLeft = keep[el.dataset.k]; });
+  }
+
+  function setupPrompt() {
+    return `<div class="card stack"><h2>Set up your logbook</h2>
+      <p class="hint">Enter your logbook totals from before the app. You do this once.</p>
+      <div class="actions"><button class="btn primary" type="button" data-act="view" data-view="setup">Start setup</button></div></div>`;
+  }
+  function nightBanner() {
+    if (!state.settings) return "";
+    const ns = L.nightStatus(state.rows, state.settings, todayISO());
+    if (ns.state === "warn") {
+      const left = ns.left === 0 ? "Today is the last day" : `${plural(ns.left, "day", "days")} left, until ${L.longDate(ns.until)}`;
+      return `<div class="banner warn-b"><span><span class="ico ico-warn" aria-hidden="true">!</span><b>Night currency:</b> ${esc(left)}. Last night flight ${esc(L.longDate(ns.last))}.</span></div>`;
+    }
+    if (ns.state === "lapsed") {
+      return `<div class="banner crit-b"><span><span class="ico ico-crit" aria-hidden="true">✕</span><b>Night currency lapsed</b> on ${esc(L.longDate(L.addDays(ns.until, 1)))}. Last night flight ${esc(L.longDate(ns.last))}.</span></div>`;
+    }
+    return "";
+  }
+
+  /* ---- Book ---- */
+  function tick(r) {
+    const what = `${L.shortDate(r.date)}${r.duty ? " " + r.duty : ""}`;
+    return `<button class="tick" type="button" data-act="tick" data-id="${esc(r.id)}" aria-pressed="${r.copied ? "true" : "false"}" aria-label="${esc(what)}: ${r.copied ? "copied to book. Tap to undo" : "mark as copied to book"}">${r.copied ? "✓" : ""}</button>`;
+  }
+  function flyingRow(r, cls) {
+    const p = L.parts(r.date);
+    return `<tr class="line ${cls}" data-act="edit" data-id="${esc(r.id)}" tabindex="0">` +
+      `<td class="c-line">${tick(r)}</td>` +
+      `<td class="v c-mon">${esc(p.month)}</td>` +
+      `<td class="v num c-date">${esc(p.day)}</td>` +
+      `<td class="v c-type">${esc(r.type)}</td>` +
+      `<td class="v c-no">${esc(r.tail)}</td>` +
+      `<td class="v txt c-cap">${esc(L.captainOf(r))}</td>` +
+      `<td class="v txt c-crew">${esc(L.crewOf(r))}</td>` +
+      `<td class="v txt c-duty">${esc(r.duty)}</td></tr>`;
+  }
+  function detailsRow(r, cls) {
+    const c = L.rowCols(r);
+    return `<tr class="line ${cls}" data-act="edit" data-id="${esc(r.id)}" tabindex="0"><td class="c-line">${tick(r)}</td>` +
+      L.COLS.map((k) => `<td class="v num c-val">${L.fmtBlank(c[k])}</td>`).join("") + `</tr>`;
+  }
+  const totCells = (o) => L.COLS.map((c) => `<td class="num c-val">${L.fmtT(o[c])}</td>`).join("");
+
+  function bookHTML() {
+    const s = state.settings;
+    if (!s) return setupPrompt();
+    const months = bookMonths();
+    const mi = currentMonthIndex(months);
+    const mo = months[mi];
+    const now = thisMonthKey();
+    const nextId = nextTodoId();
+    const n = mo.rows.length;
+    const todo = mo.rows.filter((r) => !r.copied).length;
+    const allTodo = state.rows.filter((r) => !r.copied).length;
+    const label = `${mo.month} ${mo.y}`;
+    const meta = n
+      ? `${plural(n, "flight", "flights")} · ${L.fmtT(mo.sum.c7)} h · ${todo ? todo + " still to write" : "all copied"}`
+      : `${mo.key > now ? "No flights yet" : "No flights this month"}. B/F carries straight to C/F.`;
+    const back = mo.key !== now ? ` <button class="linkbtn" type="button" data-act="this-month">Go to this month</button>` : "";
+    // The month the setup totals stop in: B/F = those totals; the month counts only flights after them.
+    const asOf = asOfDate();
+    const startsHere = !!asOf && L.monthKey(firstAllowed()) === mo.key;
+    const bfLabel = startsHere ? `Total brought forward · as of ${L.shortDate(asOf)}` : "Total brought forward";
+    const monthLabel = startsHere && firstAllowed().slice(8) !== "01" ? `${label} · from ${L.shortDate(firstAllowed())}` : label;
+    const nudge = asOf ? "" : `<div class="banner info"><span>Add the date your setup totals are from, so the book starts in the right month.</span><button class="btn" type="button" data-act="view" data-view="setup">Open Setup</button></div>`;
+
+    let fly = "", det = "";
+    for (const r of mo.rows) {
+      const cls = (r.copied ? "done" : "todo") + (r.id === nextId ? " next" : "");
+      fly += flyingRow(r, cls);
+      det += detailsRow(r, cls);
+    }
+    if (!n) {
+      fly = `<tr class="none-row"><td class="c-line"></td><td colspan="7" class="none">No flights in ${label}</td></tr>`;
+      det = `<tr class="none-row"><td class="c-line"></td><td colspan="7" class="none">No flights</td></tr>`;
+    }
+
+    // Like the paper page: Total brought forward on top; the month and Total carried forward at the bottom.
+    const flyTable = `<table class="ledger fly">
+      <thead>
+        <tr><th rowspan="2" class="c-line" scope="col"><span class="sr">Line</span></th><th colspan="2" scope="colgroup">Year</th><th colspan="2" scope="colgroup">Aircraft</th><th rowspan="2" class="c-cap" scope="col">Captain or 1st&nbsp;Pilot</th><th rowspan="2" class="c-crew" scope="col">Co-Pilot, Pupil or Crew</th><th rowspan="2" class="c-duty" scope="col">Duty</th></tr>
+        <tr><th scope="col" class="c-mon">Month</th><th scope="col" class="c-date">Date</th><th scope="col" class="c-type">Type &amp; Mark</th><th scope="col" class="c-no">No.</th></tr>
+      </thead>
+      <tbody>
+        <tr class="tot bf"><td class="c-line"></td><td class="dash">–</td><td class="dash">–</td><td class="dash">–</td><td class="dash">–</td><td class="dash">–</td><td class="dash">–</td><td class="lbl txt c-duty">${bfLabel}</td></tr>
+        ${fly}
+        <tr class="tot sum"><td class="c-line"></td><td colspan="6"></td><td class="lbl txt c-duty">${monthLabel}</td></tr>
+        <tr class="tot cf"><td class="c-line"></td><td colspan="6"></td><td class="lbl txt c-duty">Total carried forward</td></tr>
+      </tbody></table>`;
+
+    const detTable = `<table class="ledger">
+      <thead>
+        <tr><th rowspan="2" class="c-line" scope="col"><span class="sr">Line</span></th><th colspan="2" scope="colgroup">Day flying</th><th colspan="2" scope="colgroup">Night flying</th><th colspan="2" scope="colgroup">Flight time</th><th scope="colgroup">Spare</th></tr>
+        <tr><th scope="col">1st Pilot<b>(1)</b></th><th scope="col">Dual<b>(3)</b></th><th scope="col">1st Pilot<b>(4)</b></th><th scope="col">Dual<b>(6)</b></th><th scope="col">Total<b>(7)</b></th><th scope="col">Captain<b>(8)</b></th><th scope="col">F/A-18<b>(14)</b></th></tr>
+      </thead>
+      <tbody>
+        <tr class="tot bf"><th scope="row" class="c-line lblc" title="${bfLabel}">B/F</th>${totCells(mo.before)}</tr>
+        ${det}
+        <tr class="tot sum"><th scope="row" class="c-line lblc" title="${monthLabel}">${mo.month}</th>${totCells(mo.sum)}</tr>
+        <tr class="tot cf"><th scope="row" class="c-line lblc" title="Total carried forward">C/F</th>${totCells(mo.toDate)}</tr>
+      </tbody></table>`;
+
+    return `${nudge}${nightBanner()}
+      <div class="book-bar">
+        <div class="pager">
+          <button class="navbtn" type="button" data-act="month" data-dir="-1" aria-label="Previous month"${mi === 0 ? " disabled" : ""}>‹</button>
+          <button class="pg pg-btn" type="button" data-act="months" aria-haspopup="dialog" aria-label="${label}. Show all months"><span class="pg-label">${mo.y}</span><span class="pg-num" aria-live="polite">${mo.month}</span></button>
+          <button class="navbtn" type="button" data-act="month" data-dir="1" aria-label="Next month">›</button>
+        </div>
+        <p class="pg-meta">${esc(meta)}${back}</p>
+      </div>
+      ${allTodo ? `<button class="btn primary copy-cta" type="button" data-act="copy-start">Copy to book · ${plural(allTodo, "flight", "flights")}</button>` : ""}
+      <div class="book" data-side="${state.side}">
+        <article class="sheet-card flying" aria-label="Flying page, ${label}">
+          <div class="sheet-head"><h2 class="sheet-title">Flying</h2><span class="sheet-sub">${label}</span></div>
+          <div class="table-wrap" data-k="fly">${flyTable}</div>
+        </article>
+        <article class="sheet-card details" aria-label="Details page, ${label}">
+          <div class="sheet-head"><h2 class="sheet-title">Details</h2><span class="sheet-sub">Section 4 · leave (2) (5) (9)–(13) blank</span></div>
+          <div class="table-wrap" data-k="det">${detTable}</div>
+        </article>
+      </div>
+      <div class="legend"><span><i class="l-todo"></i>Still to write</span><span><i class="l-done"></i>Copied to book</span><span>Tap a line to edit it.</span><span class="swipe-hint">${state.side === "flying" ? "Swipe left for the Details page." : "Swipe right for the Flying page."}</span></div>
+      ${todo ? `<div class="book-actions"><button class="btn" type="button" data-act="mark-month">Mark the rest of ${mo.month} as copied</button></div>` : ""}`;
+  }
+
+  /* ---- Stats ---- */
+  function statsHTML() {
+    if (!state.settings) return setupPrompt();
+    const rows = state.rows;
+    const today = todayISO();
+    const rc = L.recency(rows, today);
+    const ns = L.nightStatus(rows, state.settings, today);
+    const yrs = L.yearly(rows);
+    const thisYear = Number(today.slice(0, 4));
+    if (state.statsYear == null || !yrs.some((y) => y.year === state.statsYear)) {
+      state.statsYear = yrs.some((y) => y.year === thisYear) ? thisYear : yrs.length ? yrs[0].year : thisYear;
+    }
+    const days = (n) => (n === 0 ? "Today" : `${n}<small>${n === 1 ? "day" : "days"}</small>`);
+    const tile = (label, value, sub, extra) => `<div class="tile"><span class="t-label">${label}</span><span class="t-value">${value}</span><span class="t-sub">${sub}</span>${extra || ""}</div>`;
+    const pill = ns.state === "ok" ? `<span class="pill pill-ok">✓ Current</span>`
+      : ns.state === "warn" ? `<span class="pill pill-warn">! Due soon</span>`
+      : ns.state === "lapsed" ? `<span class="pill pill-bad">✕ Lapsed</span>` : "";
+    // Night currency: days left until it's due (the last day a night flight keeps it current).
+    const dueValue = ns.state === "none" ? "–" : ns.state === "lapsed" ? "Lapsed"
+      : ns.left === 0 ? "Today" : `${ns.left}<small>${ns.left === 1 ? "day left" : "days left"}</small>`;
+    const dueSub = ns.state === "none" ? "No night flight yet. Add your last one in Setup."
+      : ns.state === "lapsed" ? `Lapsed on ${esc(L.longDate(L.addDays(ns.until, 1)))}. Last night flight ${esc(L.longDate(ns.last))}.`
+      : `Fly at night by ${esc(L.longDate(ns.until))} (${ns.limit}-day limit).`;
+    const dueTile = `<div class="tile tile-due due-${ns.state}"><span class="t-label">${ns.state === "lapsed" || ns.state === "none" ? "Night currency" : "Night currency due in"}</span><span class="t-value">${dueValue}</span><span class="t-sub">${dueSub}</span>${pill}</div>`;
+    const tiles = [
+      dueTile,
+      tile("Since last flight", rc.last ? days(rc.sinceLast) : "–",
+        rc.last ? esc(L.longDate(rc.last.date) + (rc.last.duty ? " · " + rc.last.duty : "")) : "No flights yet"),
+      tile(`Since last night flight`, ns.state === "none" ? "–" : days(ns.since),
+        ns.state === "none" ? "None yet. Add your last one in Setup." : esc(L.longDate(ns.last)) + (ns.source === "setup" ? " (from Setup)" : "")),
+      tile("Last 30 days", `${L.fmtT(rc.t30)}<small>h</small>`, plural(rc.n30, "sortie", "sorties")),
+      tile("Last 90 days", `${L.fmtT(rc.t90)}<small>h</small>`, plural(rc.n90, "sortie", "sorties")),
+    ].join("");
+    const coverage = rc.first
+      ? `Counted from flights in the app (first: ${esc(L.longDate(rc.first.date))}).${rc.coverage < 89 ? " The 90-day figure fills in as you keep logging." : ""} Night currency limit: ${ns.limit} days.`
+      : `Log your first flight to see these. Night currency limit: ${ns.limit} days.`;
+
+    const tot = L.add(L.bfTenths(state.settings), L.sumRows(rows));
+    const totals = ["c7", "c8", "c14", "c1", "c3", "c4", "c6"].map((c) =>
+      `<div><dt><b>${L.COL_INFO[c].n}</b>${L.COL_INFO[c].name}</dt><dd>${L.fmtT(tot[c])}</dd></div>`).join("");
+
+    const months = L.monthly(rows, state.statsYear);
+    const flown = months.filter((m) => m.n > 0);
+    const yearSum = flown.reduce((a, m) => ({ n: a.n + m.n, day: a.day + m.day, night: a.night + m.night, total: a.total + m.total }), { n: 0, day: 0, night: 0, total: 0 });
+    const chips = (yrs.length ? yrs.map((y) => y.year) : [state.statsYear]).map((y) =>
+      `<button type="button" class="chip" data-act="year" data-year="${y}" aria-pressed="${y === state.statsYear}">${y}</button>`).join("");
+    const monthTable = flown.length ? `<table class="data" id="month-table">
+        <thead><tr><th scope="col">Month</th><th scope="col">Sorties</th><th scope="col">Day</th><th scope="col">Night</th><th scope="col">Total</th></tr></thead>
+        <tbody>${flown.map((m) => `<tr><td>${m.label}</td><td>${m.n}</td><td>${L.fmtT(m.day)}</td><td>${L.fmtT(m.night)}</td><td>${L.fmtT(m.total)}</td></tr>`).join("")}</tbody>
+        <tfoot><tr><td>${state.statsYear}</td><td>${yearSum.n}</td><td>${L.fmtT(yearSum.day)}</td><td>${L.fmtT(yearSum.night)}</td><td>${L.fmtT(yearSum.total)}</td></tr></tfoot>
+      </table>` : "";
+    const yearTable = yrs.length ? `<table class="data">
+        <thead><tr><th scope="col">Year</th><th scope="col">Sorties</th><th scope="col">Day</th><th scope="col">Night</th><th scope="col">Total</th></tr></thead>
+        <tbody>${yrs.map((y) => `<tr><td>${y.year}</td><td>${y.n}</td><td>${L.fmtT(y.day)}</td><td>${L.fmtT(y.night)}</td><td>${L.fmtT(y.total)}</td></tr>`).join("")}</tbody>
+      </table>` : `<p class="empty-note">No flights logged yet.</p>`;
+
+    return `<div class="stack">
+      <div class="tiles">${tiles}</div>
+      <p class="note">${coverage}</p>
+      <section class="card stack"><h2>Logbook totals</h2>
+        <p class="hint">Your Total brought forward plus every flight in the app.</p>
+        <dl class="totals">${totals}</dl></section>
+      <section class="card stack">
+        <div class="card-head"><h2>Hours by month</h2><div class="chips" role="group" aria-label="Year">${chips}</div></div>
+        <div class="chart" id="chart"></div>
+        ${monthTable}
+      </section>
+      <section class="card stack"><h2>Hours by year</h2>${yearTable}
+        <p class="note">Years count only flights logged in the app.</p></section>
+    </div>`;
+  }
+  function barPath(x, y, w, h) {
+    const r = Math.max(0, Math.min(4, w / 2, h));
+    const f = (n) => n.toFixed(1);
+    return `M${f(x)},${f(y + h)}V${f(y + r)}Q${f(x)},${f(y)} ${f(x + r)},${f(y)}H${f(x + w - r)}Q${f(x + w)},${f(y)} ${f(x + w)},${f(y + r)}V${f(y + h)}Z`;
+  }
+  function drawChart() {
+    const host = document.getElementById("chart");
+    if (!host) return;
+    const year = state.statsYear;
+    const months = L.monthly(state.rows, year);
+    const maxT = Math.max(0, ...months.map((m) => m.total));
+    if (!maxT) { host.innerHTML = `<p class="empty-note">No flights logged in ${year}.</p>`; return; }
+    const W = Math.max(260, Math.floor(host.clientWidth || 320));
+    const H = 196, padL = 34, padR = 4, padT = 20, padB = 24;
+    const sc = L.niceScale(maxT);
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const band = plotW / 12;
+    const bw = Math.min(24, Math.max(6, Math.floor(band * 0.6)));
+    const y = (t) => padT + plotH - (t / sc.max) * plotH;
+    const base = y(0);
+    let maxI = 0;
+    months.forEach((m, i) => { if (m.total > months[maxI].total) maxI = i; });
+    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="group" aria-label="Hours flown each month in ${year}">`;
+    for (let v = 0; v <= sc.max; v += sc.step) {
+      const yy = y(v).toFixed(1);
+      if (v > 0) svg += `<line class="gl" x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}"/>`;
+      svg += `<text class="ax" x="${padL - 6}" y="${yy}" dy="0.32em" text-anchor="end">${L.fmtTick(v, sc.step)}</text>`;
+    }
+    svg += `<line class="base" x1="${padL}" x2="${W - padR}" y1="${base.toFixed(1)}" y2="${base.toFixed(1)}"/>`;
+    months.forEach((m, i) => {
+      const cx = padL + band * i + band / 2;
+      if (m.total > 0) svg += `<path class="bar" data-i="${i}" d="${barPath(cx - bw / 2, y(m.total), bw, base - y(m.total))}"/>`;
+      svg += `<text class="ax" x="${cx.toFixed(1)}" y="${H - 7}" text-anchor="middle">${band >= 30 ? m.label : m.label.charAt(0)}</text>`;
+    });
+    svg += `<text class="val" x="${(padL + band * maxI + band / 2).toFixed(1)}" y="${(y(months[maxI].total) - 6).toFixed(1)}" text-anchor="middle">${L.fmtT(months[maxI].total)}</text>`;
+    months.forEach((m, i) => {
+      svg += `<rect class="hit" data-i="${i}" x="${(padL + band * i).toFixed(1)}" y="${padT}" width="${band.toFixed(1)}" height="${plotH}" tabindex="0" role="img" aria-label="${m.label} ${year}: ${L.fmtT(m.total)} hours, ${plural(m.n, "sortie", "sorties")}"/>`;
+    });
+    svg += `</svg><div class="tip" hidden></div>`;
+    host.innerHTML = svg;
+    const tip = host.querySelector(".tip");
+    const bars = host.querySelectorAll(".bar");
+    const show = (i) => {
+      const m = months[i];
+      tip.innerHTML = `<strong>${L.fmtT(m.total)} h</strong><span>${m.label} ${year} · ${plural(m.n, "sortie", "sorties")}</span>${m.total ? `<span>Day ${L.fmtT(m.day)} · Night ${L.fmtT(m.night)}</span>` : ""}`;
+      tip.hidden = false;
+      const cx = padL + band * i + band / 2;
+      const half = tip.offsetWidth / 2;
+      tip.style.left = Math.min(W - half, Math.max(half, cx)) + "px";
+      tip.style.top = (m.total ? y(m.total) - (i === maxI ? 16 : 0) : base) + "px";
+      bars.forEach((b) => b.classList.toggle("dim", Number(b.dataset.i) !== i));
+    };
+    const hide = () => { tip.hidden = true; bars.forEach((b) => b.classList.remove("dim")); };
+    host.querySelectorAll(".hit").forEach((h) => {
+      const i = Number(h.dataset.i);
+      h.addEventListener("pointerenter", () => show(i));
+      h.addEventListener("pointerleave", hide);
+      h.addEventListener("focus", () => show(i));
+      h.addEventListener("blur", hide);
+    });
+  }
+
+  /* ---- Setup ---- */
+  function setupHTML() {
+    const s = state.settings || {};
+    const bf = s.bf || {};
+    const hv = (x) => (x == null || x === "" ? "" : L.fmtT(L.toT(x)));
+    const fields = L.COLS.map((c) => `<label class="field" for="s-${c}"><span><b>${L.COL_INFO[c].n}</b>${L.COL_INFO[c].name}</span>` +
+      `<input id="s-${c}" inputmode="decimal" autocomplete="off" value="${esc(hv(bf[c]))}" placeholder="${c === "c7" ? "auto" : "0.0"}"></label>`).join("");
+    const dl = downloads
+      ? `<div class="actions"><button class="btn" type="button" data-act="export-csv">Export for Excel (.csv)</button><button class="btn" type="button" data-act="export-json">Full backup (.json)</button></div>`
+      : `<p class="hint">File downloads aren't available in this view. Use Copy instead.</p>`;
+    return `<div class="stack">
+      ${state.settings ? "" : `<div class="card stack"><h2>Welcome</h2><p class="hint">Set this up once. After that you only add flights.</p></div>`}
+      <form class="card form" id="setup-form" novalidate>
+        <h2>Totals before the app</h2>
+        <p class="hint">Your logbook totals before the first flight you log here, e.g. the Total brought forward on the top line of the page you're writing on now. Leave a box empty for 0. Leave (7) empty to add up (1) + (3) + (4) + (6).</p>
+        <label class="field asof" for="s-asof">Totals as of<input id="s-asof" type="date" value="${esc(s.asOf || "")}" max="${todayISO()}"></label>
+        <p class="hint">These totals include every flight up to the end of this day. Flights after it go in the app.${state.rows.length ? ` Your first flight in the app is ${esc(L.longDate(state.rows[0].date))}.` : ""}</p>
+        <div class="bf-grid">${fields}</div>
+        <p class="check" id="s-check" aria-live="polite"></p>
+        <h2>Night currency</h2>
+        <div class="grid2">
+          <label class="field" for="s-nlimit">Limit in days<input id="s-nlimit" inputmode="numeric" autocomplete="off" value="${esc(s.nightLimit == null ? 45 : s.nightLimit)}"></label>
+          <label class="field" for="s-nlast">Last night flight before the app<input id="s-nlast" type="date" value="${esc(s.lastNightBefore || "")}"></label>
+        </div>
+        <p class="hint">The app warns you 7 days before the limit. The date is only used until you log a night flight here.</p>
+        <h2>Defaults</h2>
+        <label class="field" for="s-type">Type &amp; Mark for new flights<input id="s-type" autocomplete="off" value="${esc(s.defaultType || "F/A-18")}"></label>
+        <p class="err" id="s-err" role="alert"></p>
+        <div class="actions"><button class="btn primary" type="submit">Save setup</button></div>
+        <p class="hint">Flights in your paper book after the totals date? After saving, add them and tick each one as copied.</p>
+      </form>
+      ${lookCard()}
+      <section class="card stack">
+        <h2>Backup</h2>
+        <p class="hint">Your logbook is saved privately in your Claude account. Only you can see it, even if you share this app with someone.</p>
+        ${dl}
+        <div class="actions"><button class="btn ghost" type="button" data-act="copy-csv">Copy all as text</button></div>
+      </section>
+    </div>`;
+  }
+  function updateSetupCheck() {
+    const el = document.getElementById("s-check");
+    if (!el) return;
+    const val = (c) => (document.getElementById("s-" + c) || {}).value || "";
+    const t = (c) => { const p = L.parseHours(val(c), 999999); return p.ok ? p.t : null; };
+    const four = ["c1", "c3", "c4", "c6"].map(t);
+    if (four.some((x) => x == null)) { el.textContent = ""; return; }
+    const sum = four.reduce((a, b) => a + b, 0);
+    if (val("c7").trim() === "") { el.textContent = `(7) will be ${L.fmtT(sum)}, the sum of (1) + (3) + (4) + (6).`; return; }
+    const t7 = t("c7");
+    if (t7 == null) { el.textContent = ""; return; }
+    el.textContent = t7 === sum ? "(7) matches (1) + (3) + (4) + (6)."
+      : `(7) is ${L.fmtT(t7)}, but (1) + (3) + (4) + (6) = ${L.fmtT(sum)}. Check the numbers. It's fine if older pages used (2) or (5).`;
+  }
+  function saveSetup() {
+    const val = (id) => (document.getElementById(id) || {}).value || "";
+    const errs = [];
+    const bf = {};
+    for (const c of L.COLS) {
+      const raw = val("s-" + c);
+      if (c === "c7" && raw.trim() === "") continue;
+      const p = L.parseHours(raw, 999999);
+      if (!p.ok) { errs.push(`${L.COL_INFO[c].n}: ${p.error}.`); continue; }
+      bf[c] = p.t / 10;
+    }
+    if (bf.c7 == null) bf.c7 = (L.toT(bf.c1) + L.toT(bf.c3) + L.toT(bf.c4) + L.toT(bf.c6)) / 10;
+    const asOf = val("s-asof").trim();
+    if (!asOf) errs.push("Enter the date of your totals (Totals as of).");
+    else if (!L.validISO(asOf)) errs.push("Check the totals date.");
+    else if (asOf > todayISO()) errs.push("The totals date can't be in the future.");
+    else {
+      const early = state.rows.filter((r) => r.date <= asOf);
+      if (early.length) errs.push(`${plural(early.length, "flight", "flights")} in the app ${early.length === 1 ? "is" : "are"} on or before ${L.longDate(asOf)} (earliest ${L.longDate(early[0].date)}), so the totals would count ${early.length === 1 ? "it" : "them"} twice. Pick a date before your first flight in the app.`);
+    }
+    const nlRaw = val("s-nlimit").trim();
+    const nightLimit = nlRaw === "" ? 45 : Number(nlRaw);
+    if (!Number.isInteger(nightLimit) || nightLimit < 1 || nightLimit > 365) errs.push("Night currency limit must be 1 to 365 days.");
+    const nlast = val("s-nlast").trim();
+    if (nlast && !L.validISO(nlast)) errs.push("Check the last night flight date.");
+    else if (nlast && nlast > todayISO()) errs.push("The last night flight date can't be in the future.");
+    const errEl = document.getElementById("s-err");
+    if (errs.length) { errEl.textContent = errs.join(" "); return; }
+    if (!guard()) return;
+    const now = Date.now();
+    // Older setups also stored a page number and lines per page; they are kept but no longer used.
+    const obj = Object.assign({}, state.settings || {}, {
+      kind: "settings", bf, asOf,
+      nightLimit, lastNightBefore: nlast || "",
+      defaultType: val("s-type").trim() || "F/A-18",
+      createdAt: (state.settings && state.settings.createdAt) || now, updatedAt: now,
+    });
+    state.settings = obj;
+    recompute();
+    state.setupDirty = false;
+    state.month = null;
+    writeSettings(obj);
+    toast("Setup saved");
+    go("book");
+  }
+
+  /* ---------------- Edit flight (and "All fields"): one screen ----------------
+     Date opens the calendar. Day hours and Night hours are separate rows, each with 0.0 first. */
+  function sheetLists() {
+    const rows = state.rows, v = sheet.v;
+    const withCur = (arr, cur) => (cur && !arr.includes(cur) ? [cur].concat(arr) : arr);
+    const tenths = (arr, cur) => {
+      let a = arr.slice();
+      if (cur > 0 && !a.includes(cur)) a = a.concat([cur]).sort((x, y) => x - y);
+      return [0].concat(a);
+    };
+    return {
+      tails: withCur(L.topValues(rows, (r) => r.tail, 8), v.tail),
+      duties: withCur(L.topValues(rows, (r) => r.duty, 8), v.duty),
+      names: withCur(L.topValues(rows.filter((r) => r.role === "dual"), (r) => r.captain, 6), v.captain),
+      day: tenths(L.tenthChips(rows, (r) => L.toT(r.day), 7, [12, 13, 11, 14, 10, 15, 9, 16, 8]), v.dayT),
+      night: tenths(L.tenthChips(rows, (r) => L.toT(r.night), 7, [13, 12, 14, 10, 15, 5, 8]), v.nightT),
+    };
+  }
+  function dateLabelOf(iso) {
+    const today = todayISO();
+    if (iso === today) return `Today · ${L.shortDate(iso)}`;
+    if (iso === L.addDays(today, -1)) return `Yesterday · ${L.shortDate(iso)}`;
+    return L.validISO(iso) ? L.longDate(iso) : "Pick a date";
+  }
+  function openSheet(mode, id, prefill) {
+    if (state.conn !== "ready") return;
+    if (!state.settings) { go("setup"); toast("Do the setup first."); return; }
+    if (!guard()) return;
+    const r = id ? state.rows.find((x) => x.id === id) : null;
+    if (mode === "edit" && !r) return;
+    lastFocus = document.activeElement;
+    let v;
+    if (r) {
+      v = {
+        date: r.date, type: r.type || "", tail: r.tail || "", duty: r.duty || "",
+        dayT: L.toT(r.day), nightT: L.toT(r.night),
+        role: r.role === "dual" ? "dual" : "solo", captain: r.role === "dual" ? r.captain || "" : "", copied: !!r.copied,
+      };
+    } else {
+      v = Object.assign({ date: todayISO(), type: state.settings.defaultType || "F/A-18", tail: "", duty: "", dayT: null, nightT: null, role: "solo", captain: "", copied: false }, prefill || {});
+    }
+    sheet = { mode, id: r ? r.id : null, v, dupOk: false, confirmDelete: false, more: false, other: {} };
+    sheet.lists = sheetLists();
+    sheet.other = { tail: !sheet.lists.tails.length, duty: !sheet.lists.duties.length, name: !sheet.lists.names.length, day: false, night: false };
+    document.getElementById("dl-type").innerHTML = [...new Set([state.settings.defaultType || "F/A-18"].concat(L.topValues(state.rows, (x) => x.type, 6)))]
+      .map((x) => `<option value="${esc(x)}"></option>`).join("");
+    renderSheet();
+  }
+  function renderSheet() {
+    const root = document.getElementById("sheet-root");
+    if (!sheet) { root.innerHTML = ""; lockScroll(); return; }
+    const v = sheet.v, lists = sheet.lists, o = sheet.other;
+    const r = sheet.id ? state.rows.find((x) => x.id === sheet.id) : null;
+    const chip = (field, value, label, on) => `<button type="button" class="chip" data-act="pick" data-field="${field}" data-value="${esc(value)}" aria-pressed="${on ? "true" : "false"}">${esc(label)}</button>`;
+    const otherChip = (field) => `<button type="button" class="chip ghost" data-act="other" data-field="${field}" aria-pressed="${o[field] ? "true" : "false"}">Other…</button>`;
+    const listRow = (field, label, values, cur, placeholder, extra) => `
+      <div class="q-row" data-row="${field}"><span class="q-label" id="lbl-${field}">${label}</span>
+        ${values.length ? `<div class="chips" role="group" aria-labelledby="lbl-${field}">${values.map((x) => chip(field, x, x, !o[field] && cur === x)).join("")}${otherChip(field)}</div>` : ""}
+        <div class="q-other" data-other="${field}"${o[field] ? "" : " hidden"}><input id="f-${field}" value="${esc(o[field] ? cur : "")}" placeholder="${placeholder}" aria-labelledby="lbl-${field}" autocomplete="off" ${extra || ""}></div>
+      </div>`;
+    const hoursRow = (field, label, values, cur) => `
+      <div class="q-row" data-row="${field}"><span class="q-label" id="lbl-${field}">${label}</span>
+        <div class="chips hours" role="group" aria-labelledby="lbl-${field}">${values.map((t) => chip(field, String(t), L.fmtT(t), !o[field] && cur === t)).join("")}${otherChip(field)}</div>
+        <div class="q-other" data-other="${field}"${o[field] ? "" : " hidden"}><input id="f-${field}" inputmode="decimal" value="${o[field] && cur != null && !Number.isNaN(cur) ? L.fmtT(cur) : ""}" placeholder="e.g. 1.3" aria-labelledby="lbl-${field}" autocomplete="off"></div>
+      </div>`;
+    const foot = sheet.confirmDelete
+      ? `<div class="confirm"><p>${r && r.copied ? "Delete this flight? It's already in your book, so the lines after it move up one." : "Delete this flight?"}</p>
+          <div class="actions"><button class="btn ghost" type="button" data-act="delete-cancel">Keep it</button><button class="btn danger" type="button" data-act="delete-confirm">Delete flight</button></div></div>`
+      : `<div class="q-sum"><span class="s1" id="f-sum"></span><span class="s2" id="f-cols"></span></div>
+         <p class="err" id="f-err" role="alert"></p>
+         <div class="q-btns">${sheet.mode === "edit" ? '<button class="btn danger" type="button" data-act="delete">Delete</button>' : ""}<span class="spacer"></span>
+           <button class="btn ghost" type="button" data-act="close-sheet">Cancel</button><button class="btn primary" type="submit" form="flight-form" id="f-save">Save flight</button></div>`;
+    root.innerHTML = `
+      <div class="scrim" data-act="close-sheet"></div>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="f-title">
+        <div class="panel-head"><h2 id="f-title" tabindex="-1">${sheet.mode === "edit" ? "Edit flight" : "Add flight"}</h2></div>
+        <form class="panel-body" id="flight-form" novalidate autocomplete="off">
+          ${r && r.copied ? `<p class="warn">This line is already in your book. If you change it here, fix the book too.</p>` : ""}
+          <div class="q-row"><span class="q-label" id="lbl-date">Date</span>
+            <label class="date-btn" for="f-date"><span id="f-date-txt">${esc(dateLabelOf(v.date))}</span><span aria-hidden="true">▾</span><input id="f-date" type="date" value="${esc(v.date)}"${firstAllowed() ? ` min="${firstAllowed()}"` : ""} max="${todayISO()}" aria-labelledby="lbl-date"></label>
+          </div>
+          ${listRow("tail", "Aircraft No.", lists.tails, v.tail, "e.g. 431", 'inputmode="numeric"')}
+          ${listRow("duty", "Duty", lists.duties, v.duty, "Mission, e.g. BFM", 'autocapitalize="characters"')}
+          ${hoursRow("day", "Day hours", lists.day, v.dayT)}
+          ${hoursRow("night", "Night hours", lists.night, v.nightT)}
+          <div class="seg" role="group" aria-label="Who was aboard">
+            <button type="button" data-act="role" data-value="solo" aria-pressed="${v.role === "solo"}">Solo</button>
+            <button type="button" data-act="role" data-value="dual" aria-pressed="${v.role === "dual"}">Dual</button>
+          </div>
+          <div data-show="dual"${v.role === "dual" ? "" : " hidden"}>
+            ${listRow("name", "Captain (the other pilot). You go in Crew.", lists.names, v.captain, "Name", 'autocapitalize="words"')}
+          </div>
+          <button type="button" class="linkbtn" data-act="more" aria-expanded="${sheet.more}">${sheet.more ? "Fewer options" : "More options"}</button>
+          <div class="q-more"${sheet.more ? "" : " hidden"}>
+            <label class="field" for="f-type">Type &amp; Mark<input id="f-type" list="dl-type" value="${esc(v.type)}" autocomplete="off"></label>
+            <label class="check-row" for="f-copied"><input type="checkbox" id="f-copied"${v.copied ? " checked" : ""}>Already copied to the paper book</label>
+          </div>
+        </form>
+        <div class="panel-foot">${foot}</div>
+      </div>`;
+    lockScroll();
+    updateLive();
+    focusEl(document.getElementById("f-title"));
+  }
+  function readSheet() {
+    if (!sheet || !document.getElementById("flight-form")) return;
+    const g = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+    const v = sheet.v, o = sheet.other;
+    const d = g("f-date");
+    if (L.validISO(d)) v.date = d;
+    if (o.tail) v.tail = g("f-tail").trim();
+    if (o.duty) v.duty = g("f-duty").trim();
+    if (o.name) v.captain = g("f-name").trim();
+    for (const f of ["day", "night"]) {
+      if (!o[f]) continue;
+      const raw = g("f-" + f);
+      const p = L.parseHours(raw, 240);
+      v[f + "T"] = raw.trim() === "" ? null : p.ok ? p.t : NaN;
+      v[f + "Err"] = p.ok ? "" : p.error;
+    }
+    const ty = document.getElementById("f-type");
+    if (ty) v.type = ty.value;
+    const c = document.getElementById("f-copied");
+    if (c) v.copied = !!c.checked;
+  }
+  function hoursOf(v) {
+    if (v.dayT == null) return { ok: false, err: "Pick the day hours (0.0 if none)." };
+    if (Number.isNaN(v.dayT)) return { ok: false, err: `Day hours: ${v.dayErr || "use a number like 1.3"}.` };
+    if (v.nightT == null) return { ok: false, err: "Pick the night hours (0.0 if none)." };
+    if (Number.isNaN(v.nightT)) return { ok: false, err: `Night hours: ${v.nightErr || "use a number like 0.4"}.` };
+    if (v.dayT + v.nightT === 0) return { ok: false, err: "Day and night can't both be 0.0." };
+    if (v.dayT + v.nightT > 240) return { ok: false, err: "Day + night is more than 24.0 hours." };
+    return { ok: true, dayT: v.dayT, nightT: v.nightT };
+  }
+  function updateLive() {
+    if (!sheet) return;
+    readSheet();
+    const v = sheet.v;
+    const h = hoursOf(v);
+    const dt = document.getElementById("f-date-txt");
+    if (dt) dt.textContent = dateLabelOf(v.date);
+    const sum = document.getElementById("f-sum");
+    if (sum) {
+      const hrs = (t) => (t == null || Number.isNaN(t) ? "?" : L.fmtT(t));
+      sum.textContent = [L.validISO(v.date) ? L.shortDate(v.date) : "date?", v.tail || "No. –", v.duty || "Duty –",
+        `day ${hrs(v.dayT)}`, `night ${hrs(v.nightT)}`, v.role === "dual" ? `Dual${v.captain ? " · " + v.captain : ""}` : "Solo"].join(" · ");
+    }
+    const cols = document.getElementById("f-cols");
+    if (cols) {
+      if (h.ok) {
+        const c = L.rowCols({ day: h.dayT / 10, night: h.nightT / 10, role: v.role, type: v.type });
+        cols.textContent = "Goes in " + L.COLS.filter((k) => c[k]).map((k) => `${L.COL_INFO[k].n} ${L.fmtT(c[k])}`).join(" · ");
+      } else cols.textContent = "";
+    }
+    const save = document.getElementById("f-save");
+    if (save) save.textContent = sheet.dupOk ? "Save anyway" : "Save flight";
+  }
+  function clearSheetError() {
+    const e = document.getElementById("f-err");
+    if (e) { e.textContent = ""; e.className = "err"; }
+  }
+  function pickChip(btn) {
+    if (!sheet) return;
+    readSheet();
+    const f = btn.dataset.field, val = btn.dataset.value;
+    if (f === "tail") sheet.v.tail = val;
+    else if (f === "duty") sheet.v.duty = val;
+    else if (f === "name") sheet.v.captain = val;
+    else if (f === "day") sheet.v.dayT = Number(val);
+    else if (f === "night") sheet.v.nightT = Number(val);
+    sheet.other[f] = false;
+    const row = btn.closest(".q-row");
+    row.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c === btn ? "true" : "false"));
+    const box = row.querySelector(".q-other");
+    if (box) box.hidden = true;
+    sheet.dupOk = false;
+    clearSheetError();
+    updateLive();
+  }
+  function openOther(f) {
+    if (!sheet) return;
+    readSheet();
+    sheet.other[f] = true;
+    const box = document.querySelector(`.q-other[data-other="${f}"]`);
+    if (!box) return;
+    const row = box.closest(".q-row");
+    row.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.act === "other" ? "true" : "false"));
+    box.hidden = false;
+    const input = box.querySelector("input");
+    input.value = "";
+    if (f === "day") sheet.v.dayT = null;
+    else if (f === "night") sheet.v.nightT = null;
+    else if (f === "tail") sheet.v.tail = "";
+    else if (f === "duty") sheet.v.duty = "";
+    else if (f === "name") sheet.v.captain = "";
+    sheet.dupOk = false;
+    clearSheetError();
+    focusEl(input);
+    updateLive();
+  }
+  function setToggle(kind, value) {
+    if (!sheet || kind !== "role") return;
+    readSheet();
+    sheet.v.role = value === "dual" ? "dual" : "solo";
+    document.querySelectorAll('.panel [data-act="role"]').forEach((b) => b.setAttribute("aria-pressed", b.dataset.value === sheet.v.role ? "true" : "false"));
+    const dual = document.querySelector('.panel [data-show="dual"]');
+    if (dual) dual.hidden = sheet.v.role !== "dual";
+    if (sheet.v.role === "dual" && sheet.other.name) focusEl(document.getElementById("f-name"));
+    sheet.dupOk = false;
+    clearSheetError();
+    updateLive();
+  }
+  function toggleMore() {
+    if (!sheet) return;
+    sheet.more = !sheet.more;
+    const box = document.querySelector(".panel .q-more");
+    if (box) box.hidden = !sheet.more;
+    const b = document.querySelector('.panel [data-act="more"]');
+    if (b) { b.setAttribute("aria-expanded", String(sheet.more)); b.textContent = sheet.more ? "Fewer options" : "More options"; }
+  }
+  function closeSheet() {
+    sheet = null;
+    renderSheet();
+    if (lastFocus && document.contains(lastFocus)) focusEl(lastFocus);
+    lastFocus = null;
+  }
+  function submitSheet() {
+    readSheet();
+    const v = sheet.v;
+    const errs = [];
+    if (!L.validISO(v.date)) errs.push("Pick the date.");
+    else if (v.date > todayISO()) errs.push("The date can't be in the future.");
+    else if (coveredByTotals(v.date)) errs.push(coveredMsg());
+    const h = hoursOf(v);
+    if (!h.ok) errs.push(h.err);
+    if (!String(v.type || "").trim()) errs.push("Enter the Type & Mark under More options.");
+    if (v.role === "dual" && !String(v.captain || "").trim()) errs.push("Pick or type the Captain's name.");
+    const errEl = document.getElementById("f-err");
+    if (errs.length) { errEl.className = "err"; errEl.textContent = errs.join(" "); return; }
+    if (sheet.mode === "add" && !sheet.dupOk) {
+      const dup = L.findDuplicate(state.rows, { date: v.date, tail: v.tail, day: h.dayT / 10, night: h.nightT / 10 }, null);
+      if (dup) {
+        sheet.dupOk = true;
+        errEl.className = "warn";
+        errEl.textContent = `Already logged: ${L.shortDate(dup.date)} · ${dup.tail || "No. –"} · ${L.fmtT(L.toT(dup.day) + L.toT(dup.night))} h. If this is a second sortie, tap Save anyway.`;
+        updateLive();
+        return;
+      }
+    }
+    if (!guard()) return;
+    saveFlight(v, h.dayT, h.nightT);
+  }
+  function saveFlight(v, dayT, nightT) {
+    const existing = sheet.id ? state.rows.find((r) => r.id === sheet.id) : null;
+    persistFlight(existing, v, dayT, nightT);
+    sheet = null;
+    renderSheet();
+    state.month = L.monthKey(v.date);
+    render();
+    toast(`Saved · ${L.shortDate(v.date)}`);
+  }
+  // Writes one flight (new or edited).
+  function persistFlight(existing, v, dayT, nightT) {
+    const fid = existing ? existing.id : "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const docId = "y" + v.date.slice(0, 4);
+    const pos = !existing || existing.date !== v.date || !Number.isFinite(existing.pos) ? L.nextPos(state.rows, fid) : existing.pos;
+    const now = Date.now();
+    const role = v.role === "dual" ? "dual" : "solo";
+    const flight = {
+      date: v.date, type: String(v.type).trim(), tail: String(v.tail || "").trim(), role,
+      captain: role === "dual" ? String(v.captain).trim() : "SELF",
+      crew: role === "dual" ? "SELF" : "",
+      duty: String(v.duty || "").trim(), day: dayT / 10, night: nightT / 10, copied: !!v.copied, pos,
+      createdAt: existing ? Number(existing.createdAt) || now : now, updatedAt: now + 1, deleted: false,
+    };
+    const moves = existing && existing._doc && existing._doc !== docId;
+    if (moves) applyLocal(existing._doc, { [fid]: { deleted: true, updatedAt: now } });
+    applyLocal(docId, { [fid]: flight });
+    if (moves) writeYear(existing._doc, { [fid]: { deleted: true, updatedAt: now } });
+    writeYear(docId, { [fid]: flight });
+    return { fid };
+  }
+  function undoAdd(fid) {
+    const r = state.rows.find((x) => x.id === fid);
+    if (!r) return;
+    const patch = { [fid]: { deleted: true, updatedAt: Date.now() } };
+    applyLocal(r._doc, patch);
+    render();
+    writeYear(r._doc, patch);
+    toast("Flight removed");
+  }
+
+  /* ---------------- Add flight: step by step, typed ----------------
+     Jet → Duty → Hours (+ night part if Split, + Captain if Dual). The keyboard opens on each step;
+     usual answers sit above it as one-tap shortcuts and filter as you type. */
+  const WIZ_FIELD = { tail: "tail", duty: "duty", day: "dayStr", night: "nightStr", captain: "captain" };
+  function wizSteps(v) {
+    const s = ["tail", "duty", "day", "night"];
+    if (v.role === "dual") s.push("captain");
+    return s;
+  }
+  function openWizard() {
+    if (state.conn !== "ready") return;
+    if (!state.settings) { go("setup"); toast("Do the setup first."); return; }
+    if (!guard()) return;
+    lastFocus = document.activeElement;
+    const rows = state.rows;
+    const withZero = (arr) => ["0.0"].concat(arr.map((t) => L.fmtT(t)));
+    wiz = {
+      step: "tail", dupOk: false, dateOpen: false,
+      v: { date: todayISO(), tail: "", duty: "", dayStr: "", nightStr: "", role: "solo", captain: "" },
+      lists: {
+        tail: L.topValues(rows, (r) => r.tail, 8),
+        duty: L.topValues(rows, (r) => r.duty, 8),
+        captain: L.topValues(rows.filter((r) => r.role === "dual"), (r) => r.captain, 6),
+        day: withZero(L.tenthChips(rows, (r) => L.toT(r.day), 7, [12, 13, 11, 14, 10, 15, 9, 16, 8])),
+        night: withZero(L.tenthChips(rows, (r) => L.toT(r.night), 7, [13, 12, 14, 10, 15, 5, 8])),
+      },
+    };
+    renderWiz();
+  }
+  function readWizInput() {
+    if (!wiz) return;
+    const el = document.getElementById("w-in");
+    if (el) wiz.v[WIZ_FIELD[wiz.step]] = el.value;
+  }
+  // Day and night are answered separately. 0.0 is a valid answer for either, but not for both.
+  function wizHours(v, needNight) {
+    const blank = (s) => String(s == null ? "" : s).trim() === "";
+    if (blank(v.dayStr)) return { ok: false, err: "Type the day hours, or tap 0.0 if there were none." };
+    const d = L.parseHours(v.dayStr, 240);
+    if (!d.ok) return { ok: false, err: `Day hours: ${d.error}.` };
+    if (!needNight) return { ok: true, dayT: d.t, partial: true };
+    if (blank(v.nightStr)) return { ok: false, err: "Type the night hours, or tap 0.0 if there were none." };
+    const n = L.parseHours(v.nightStr, 240);
+    if (!n.ok) return { ok: false, err: `Night hours: ${n.error}.` };
+    if (d.t + n.t === 0) return { ok: false, err: "Day and night can't both be 0.0." };
+    if (d.t + n.t > 240) return { ok: false, err: "Day + night is more than 24.0 hours." };
+    return { ok: true, dayT: d.t, nightT: n.t };
+  }
+  function renderWiz() {
+    const root = document.getElementById("wiz-root");
+    if (!wiz) { root.innerHTML = ""; lockScroll(); return; }
+    const w = wiz, v = w.v;
+    const steps = wizSteps(v);
+    const k = Math.max(0, steps.indexOf(w.step));
+    const isLast = k === steps.length - 1;
+    const today = todayISO(), yday = L.addDays(today, -1);
+    const dateLabel = v.date === today ? `Today · ${L.shortDate(v.date)}` : v.date === yday ? `Yesterday · ${L.shortDate(v.date)}` : L.longDate(v.date);
+    const sofar = [L.shortDate(v.date), v.tail, v.duty, v.dayStr !== "" ? `day ${v.dayStr}` : "", v.nightStr !== "" ? `night ${v.nightStr}` : ""]
+      .slice(0, 1 + k).filter(Boolean);
+    const q = { tail: "Which jet?", duty: "Duty?", day: "Day hours?", night: "Night hours?", captain: "Captain? (the other pilot)" }[w.step];
+    const attrs = {
+      tail: 'inputmode="numeric" placeholder="e.g. 431"',
+      duty: 'inputmode="text" autocapitalize="characters" placeholder="e.g. BFM"',
+      day: 'inputmode="decimal" placeholder="e.g. 1.3"',
+      night: 'inputmode="decimal" placeholder="0.0 if none"',
+      captain: 'inputmode="text" autocapitalize="words" placeholder="Name"',
+    }[w.step];
+    const seg = (act, opts, cur, label) => `<div class="seg" role="group" aria-label="${label}">${opts.map(([val, txt]) =>
+      `<button type="button" class="keep" data-act="${act}" data-value="${val}" aria-pressed="${cur === val}">${txt}</button>`).join("")}</div>`;
+    root.innerHTML = `
+      <div class="wiz" role="dialog" aria-modal="true" aria-labelledby="w-q">
+        <div class="wrap wiz-head">
+          <button class="btn ghost keep" type="button" data-act="w-back">${k === 0 ? "Cancel" : "‹ Back"}</button>
+          <span class="wiz-step">Add flight · ${k + 1} of ${steps.length}</span>
+          <button class="btn ghost keep" type="button" data-act="w-all">All fields</button>
+        </div>
+        <div class="wrap wiz-progress" aria-hidden="true">${steps.map((s, i) => `<span class="${i <= k ? "on" : ""}"></span>`).join("")}</div>
+        <div class="wrap wiz-body">
+          <div class="wiz-ctx">
+            <label class="wiz-date" for="w-date-in"><span>${esc(dateLabel)} ▾</span><input id="w-date-in" type="date" value="${esc(v.date)}"${firstAllowed() ? ` min="${firstAllowed()}"` : ""} max="${today}" aria-label="Flight date"></label>
+          </div>
+          ${k > 0 ? `<p class="wiz-sofar">${esc(sofar.join(" · "))}</p>` : ""}
+          <label class="wiz-q" for="w-in" id="w-q">${q}</label>
+          ${w.step === "day" || w.step === "night" ? `<div class="q-two">${seg("w-role", [["solo", "Solo"], ["dual", "Dual"]], v.role, "Who was aboard")}</div>` : ""}
+          <div class="wiz-row">
+            <input id="w-in" ${attrs} enterkeyhint="${isLast ? "done" : "next"}" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(v[WIZ_FIELD[w.step]])}">
+            <button class="btn primary keep" type="button" data-act="w-next" id="w-next">${isLast ? (w.dupOk ? "Save anyway" : "Save") : "Next"}</button>
+          </div>
+          <p class="err" id="w-err" role="alert"></p>
+          <div class="chips" id="w-chips"></div>
+          ${w.step === "day" || w.step === "night" ? `<p class="q-cols" id="w-cols"></p>` : ""}
+        </div>
+      </div>`;
+    lockScroll();
+    updateWizLive();
+    const inp = document.getElementById("w-in");
+    if (inp) {
+      focusEl(inp);
+      try { const n = inp.value.length; inp.setSelectionRange(n, n); } catch (e) { /* not supported */ }
+    }
+  }
+  function updateWizLive() {
+    if (!wiz) return;
+    readWizInput();
+    const w = wiz, v = w.v;
+    const chipsEl = document.getElementById("w-chips");
+    if (chipsEl) {
+      const raw = String(v[WIZ_FIELD[w.step]] || "").trim();
+      const numeric = w.step === "day" || w.step === "night";
+      const typedT = numeric ? L.parseHours(raw, 240) : null;
+      const isOn = (x) => (numeric ? raw !== "" && typedT.ok && L.toT(x) === typedT.t : x.toUpperCase() === raw.toUpperCase());
+      const list = L.filterChips(w.lists[w.step] || [], raw).slice(0, 10);
+      chipsEl.innerHTML = list.map((x) => `<button type="button" class="chip keep" data-act="w-pick" data-value="${esc(x)}" aria-pressed="${isOn(x) ? "true" : "false"}">${esc(x)}</button>`).join("");
+      chipsEl.hidden = !list.length;
+    }
+    const cols = document.getElementById("w-cols");
+    if (cols) {
+      const h = wizHours(v, w.step === "night");
+      if (h.ok && !h.partial) {
+        const c = L.rowCols({ day: h.dayT / 10, night: h.nightT / 10, role: v.role, type: state.settings.defaultType || "F/A-18" });
+        cols.textContent = "Goes in " + L.COLS.filter((x) => c[x]).map((x) => `${L.COL_INFO[x].n} ${L.fmtT(c[x])}`).join(" · ");
+      } else cols.textContent = h.ok && h.partial ? "Next: night hours." : "";
+    }
+  }
+  function wizError(msg, warn) {
+    const e = document.getElementById("w-err");
+    if (e) { e.className = warn ? "warn" : "err"; e.textContent = msg; }
+    focusEl(document.getElementById("w-in"));
+  }
+  function wizNext() {
+    if (!wiz) return;
+    readWizInput();
+    const w = wiz, v = w.v, steps = wizSteps(v), k = steps.indexOf(w.step);
+    if (w.step === "tail") {
+      if (!v.tail.trim()) return wizError("Type the jet number, or tap one below.");
+      v.tail = L.matchKnown(v.tail, w.lists.tail);
+    } else if (w.step === "duty") {
+      if (!v.duty.trim()) return wizError("Type the duty, or tap one below.");
+      v.duty = L.matchKnown(v.duty, w.lists.duty);
+    } else if (w.step === "day") {
+      const h = wizHours(v, false);
+      if (!h.ok) return wizError(h.err);
+      v.dayStr = L.fmtT(h.dayT);
+    } else if (w.step === "night") {
+      const h = wizHours(v, true);
+      if (!h.ok) return wizError(h.err);
+      v.nightStr = L.fmtT(h.nightT);
+    } else if (w.step === "captain") {
+      if (!v.captain.trim()) return wizError("Type the Captain's name, or tap one below.");
+      v.captain = L.matchKnown(v.captain, w.lists.captain);
+    }
+    if (k < steps.length - 1) { w.step = steps[k + 1]; w.dupOk = false; renderWiz(); return; }
+    wizFinish();
+  }
+  function wizFinish() {
+    const w = wiz, v = w.v;
+    const h = wizHours(v, true);
+    if (!h.ok) return wizError(h.err);
+    if (!L.validISO(v.date)) return wizError("Pick the date.");
+    if (coveredByTotals(v.date)) return wizError(coveredMsg());
+    const rec = {
+      date: v.date, type: state.settings.defaultType || "F/A-18", tail: v.tail.trim(), duty: v.duty.trim(),
+      role: v.role === "dual" ? "dual" : "solo", captain: v.captain.trim(), copied: false,
+    };
+    if (!w.dupOk) {
+      const dup = L.findDuplicate(state.rows, { date: rec.date, tail: rec.tail, day: h.dayT / 10, night: h.nightT / 10 }, null);
+      if (dup) {
+        w.dupOk = true;
+        const btn = document.getElementById("w-next");
+        if (btn) btn.textContent = "Save anyway";
+        return wizError(`Already logged: ${L.shortDate(dup.date)} · ${dup.tail || "No. –"} · ${L.fmtT(L.toT(dup.day) + L.toT(dup.night))} h. If this is a second sortie, tap Save anyway.`, true);
+      }
+    }
+    if (!guard()) return;
+    const { fid } = persistFlight(null, rec, h.dayT, h.nightT);
+    closeWiz(false);
+    state.month = L.monthKey(rec.date);
+    render();
+    toast(`Saved · ${L.shortDate(rec.date)}`, { label: "Undo", fn: () => undoAdd(fid) });
+  }
+  function wizBack() {
+    if (!wiz) return;
+    readWizInput();
+    const steps = wizSteps(wiz.v), k = steps.indexOf(wiz.step);
+    if (k <= 0) { closeWiz(); return; }
+    wiz.step = steps[k - 1];
+    wiz.dupOk = false;
+    renderWiz();
+  }
+  function wizAllFields() {
+    if (!wiz) return;
+    readWizInput();
+    const v = wiz.v;
+    const d = L.parseHours(v.dayStr, 240), n = L.parseHours(v.nightStr, 240);
+    const blank = (s) => String(s == null ? "" : s).trim() === "";
+    const prefill = {
+      date: v.date, tail: v.tail.trim(), duty: v.duty.trim(),
+      dayT: blank(v.dayStr) || !d.ok ? null : d.t, nightT: blank(v.nightStr) || !n.ok ? null : n.t,
+      role: v.role, captain: v.captain.trim(),
+    };
+    const back = lastFocus;
+    wiz = null;
+    renderWiz();
+    openSheet("add", null, prefill);
+    lastFocus = back;
+  }
+  function closeWiz(restore) {
+    wiz = null;
+    renderWiz();
+    if (restore !== false && lastFocus && document.contains(lastFocus)) focusEl(lastFocus);
+    lastFocus = null;
+  }
+  function deleteFlight(id) {
+    const r = state.rows.find((x) => x.id === id);
+    if (!r || !guard()) return;
+    const patch = { [id]: { deleted: true, updatedAt: Date.now() } };
+    applyLocal(r._doc, patch);
+    sheet = null;
+    renderSheet();
+    render();
+    toast("Flight deleted");
+    writeYear(r._doc, patch);
+  }
+  function setCopied(r, value) {
+    const patch = { [r.id]: { copied: value, updatedAt: Date.now() } };
+    applyLocal(r._doc, patch);
+    writeYear(r._doc, patch);
+  }
+  function toggleCopied(id) {
+    if (!guard()) return;
+    const r = state.rows.find((x) => x.id === id);
+    if (!r) return;
+    setCopied(r, !r.copied);
+    renderHeader();
+    renderMain();
+    document.querySelectorAll(".tick").forEach((b) => { if (b.dataset.id === id) b.classList.add("pop"); });
+  }
+  function markMonthCopied() {
+    if (!guard()) return;
+    const months = bookMonths();
+    const mo = months[currentMonthIndex(months)];
+    if (!mo) return;
+    const todo = mo.rows.filter((r) => !r.copied);
+    if (!todo.length) return;
+    const now = Date.now();
+    const byDoc = {};
+    for (const r of todo) (byDoc[r._doc] = byDoc[r._doc] || {})[r.id] = { copied: true, updatedAt: now };
+    for (const [doc, patch] of Object.entries(byDoc)) applyLocal(doc, patch);
+    render();
+    toast(`${plural(todo.length, "flight", "flights")} marked as copied`);
+    for (const [doc, patch] of Object.entries(byDoc)) writeYear(doc, patch);
+  }
+
+  /* ---------------- Copy mode: one line at a time ---------------- */
+  function startCopy() {
+    if (!state.settings || !guard()) return;
+    const steps = L.copyList(state.rows).map((id) => ({ kind: "line", id }));
+    if (!steps.length) { toast("Nothing to copy. Every flight is in the book."); return; }
+    lastFocus = document.activeElement;
+    copyRun = { steps, i: 0, done: false, marked: new Set() };
+    renderCopy();
+  }
+  function renderCopy() {
+    const root = document.getElementById("copy-root");
+    if (!copyRun) { root.innerHTML = ""; lockScroll(); return; }
+    const { steps, i } = copyRun;
+    let body = "", nextLabel = "Next", prog = "";
+    if (copyRun.done) {
+      prog = "Done";
+      body = `<p class="copy-where">All caught up</p>
+        <div class="copy-side"><p>${plural(copyRun.marked.size, "flight", "flights")} marked as copied.</p></div>`;
+    } else {
+      const st = steps[i];
+      if (st.kind === "line") {
+        const r = state.rows.find((x) => x.id === st.id);
+        prog = `Flight ${i + 1} of ${steps.length}`;
+        if (!r) {
+          body = `<p class="copy-where">Deleted flight</p><div class="copy-side"><p>This flight was deleted. Skip it.</p></div>`;
+        } else {
+          const p = L.parts(r.date), c = L.rowCols(r);
+          const fld = (label, value, cls) => `<div class="${cls || ""}"><dt>${label}</dt><dd>${value ? esc(value) : '<span class="blank">leave blank</span>'}</dd></div>`;
+          body = `<p class="copy-where">${esc(L.longDate(r.date))}${r.copied ? ' <span class="pill pill-ok">✓ Copied</span>' : ""}</p>
+            <section class="copy-side"><h3>Flying page <span>left side</span></h3>
+              <dl class="copy-grid">
+                ${fld("Month", p.month)}${fld("Date", p.day)}${fld("Type &amp; Mark", r.type)}${fld("No.", r.tail)}
+                ${fld("Captain or 1st Pilot", L.captainOf(r), "half")}${fld("Co-Pilot, Pupil or Crew", L.crewOf(r), "half")}
+                ${fld("Duty", r.duty, "full")}
+              </dl></section>
+            <section class="copy-side"><h3>Details page <span>right side</span></h3>
+              <dl class="copy-cols">${L.COLS.map((k) => `<div class="${c[k] ? "" : "nil"}"><dt>${L.COL_INFO[k].n}</dt><dd>${c[k] ? L.fmtT(c[k]) : "–"}</dd></div>`).join("")}</dl>
+              <p class="note">Columns with – stay blank, like (2), (5) and (9) to (13).</p></section>`;
+          nextLabel = r.copied ? "Next" : "Copied, next line";
+        }
+      }
+    }
+    root.innerHTML = `
+      <div class="copy" role="dialog" aria-modal="true" aria-labelledby="c-title">
+        <div class="wrap copy-head">
+          <div><h2 id="c-title" tabindex="-1">Copy to book</h2><span class="copy-prog">${prog}</span></div>
+          <button class="btn ghost" type="button" data-act="copy-close">Close</button>
+        </div>
+        <div class="wrap copy-body">${body}</div>
+        <div class="wrap copy-foot">
+          ${copyRun.done
+            ? `<button class="btn primary big" type="button" data-act="copy-close">Done</button>`
+            : `<button class="btn" type="button" data-act="copy-back"${i === 0 ? " disabled" : ""}>Back</button><button class="btn primary big" type="button" data-act="copy-next">${nextLabel}</button>`}
+        </div>
+      </div>`;
+    lockScroll();
+    focusEl(document.getElementById("c-title"));
+  }
+  function copyNext() {
+    if (!copyRun || copyRun.done) return;
+    const st = copyRun.steps[copyRun.i];
+    if (st.kind === "line") {
+      const r = state.rows.find((x) => x.id === st.id);
+      if (r && !r.copied) {
+        if (!guard()) return;
+        setCopied(r, true);
+        copyRun.marked.add(r.id);
+      }
+    }
+    if (copyRun.i < copyRun.steps.length - 1) copyRun.i++;
+    else copyRun.done = true;
+    renderCopy();
+    renderHeader();
+    renderMain();
+  }
+  function copyBack() {
+    if (!copyRun) return;
+    if (copyRun.done) copyRun.done = false;
+    else copyRun.i = Math.max(0, copyRun.i - 1);
+    renderCopy();
+  }
+  function closeCopy() {
+    copyRun = null;
+    renderCopy();
+    if (lastFocus && document.contains(lastFocus)) focusEl(lastFocus);
+    lastFocus = null;
+  }
+
+  /* ---------------- Export ---------------- */
+  function backupObject() {
+    return {
+      app: "Flight Logbook", format: 1, exportedAt: new Date().toISOString(),
+      settings: state.settings,
+      flights: state.rows.map((f) => { const o = Object.assign({}, f); delete o._doc; return o; }),
+    };
+  }
+  async function exportFile(kind) {
+    if (!state.settings) return;
+    if (!downloads) { toast("Downloads aren't available here. Use Copy all as text."); return; }
+    const filename = `flight-logbook-${todayISO()}.${kind}`;
+    const data = kind === "csv" ? "﻿" + L.toCSV(state.rows, state.settings) : JSON.stringify(backupObject(), null, 2);
+    try {
+      const res = await downloads.save({ filename, data });
+      if (res && res.status === "saved") toast("File saved");
+    } catch (e) {
+      const c = e && e.code;
+      if (c === "declined") return;
+      toast(c === "rate_limited" ? "A save is already open. Finish that one first." : "Couldn't save the file here. Use Copy all as text.");
+    }
+  }
+  async function copyText() {
+    if (!state.settings) return;
+    try { await navigator.clipboard.writeText(L.toCSV(state.rows, state.settings)); toast("Copied. Paste it into Excel or Notes."); }
+    catch (e) { toast("Copying isn't allowed in this view."); }
+  }
+
+  /* ---------------- Month list (tap the month) ---------------- */
+  function openMonths() {
+    if (!state.settings) return;
+    lastFocus = document.activeElement;
+    monthsOpen = true;
+    renderMonthsList();
+  }
+  function closeMonths() {
+    monthsOpen = false;
+    renderMonthsList();
+    if (lastFocus && document.contains(lastFocus)) focusEl(lastFocus);
+    lastFocus = null;
+  }
+  function renderMonthsList() {
+    const root = document.getElementById("months-root");
+    if (!monthsOpen) { root.innerHTML = ""; lockScroll(); return; }
+    const months = bookMonths(), cur = currentMonthIndex(months), now = thisMonthKey();
+    const items = months.map((mo, i) => {
+      const n = mo.rows.length, todo = mo.rows.filter((r) => !r.copied).length;
+      const st = !n ? "" : todo ? `<span class="pl-state todo">${todo} to copy</span>` : `<span class="pl-state done">Copied</span>`;
+      const sub = [n ? plural(n, "flight", "flights") : "", mo.key === now ? "this month" : "", i === cur ? "showing" : ""].filter(Boolean).join(" · ");
+      return `<li><button type="button" class="pl-item${n ? "" : " empty"}" data-act="goto-month" data-month="${mo.key}"${i === cur ? ' aria-current="true"' : ""}>` +
+        `<span class="pl-num">${mo.month}<small>${mo.y}</small></span>` +
+        `<span class="pl-main"><span class="pl-dates">${n ? L.fmtT(mo.sum.c7) + " h" : "No flights"}</span>${sub ? `<span class="pl-sub">${sub}</span>` : ""}</span>${st}</button></li>`;
+    }).reverse().join("");
+    root.innerHTML = `
+      <div class="scrim" data-act="close-months"></div>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="ml-title">
+        <div class="panel-head"><h2 id="ml-title" tabindex="-1">Months</h2><button type="button" class="linkbtn" data-act="close-months">Close</button></div>
+        <div class="panel-body pl-body"><ul class="pl">${items}</ul></div>
+      </div>`;
+    lockScroll();
+    const curEl = root.querySelector('[aria-current="true"]');
+    if (curEl && curEl.scrollIntoView) { try { curEl.scrollIntoView({ block: "nearest" }); } catch (e) { /* ignore */ } }
+    focusEl(document.getElementById("ml-title"));
+  }
+
+  /* ---------------- Swipe between Flying and Details (phone layout) ---------------- */
+  const oneSide = window.matchMedia ? window.matchMedia("(max-width: 999.98px)") : null;
+  const calm = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  let sw = null;
+  function setSide(side, dir) {
+    state.side = side === "details" ? "details" : "flying";
+    try { localStorage.setItem("logbook.side", state.side); } catch (err) { /* optional */ }
+    renderTools();
+    renderMain();
+    if (!dir || calm()) return;
+    const card = main.querySelector(".sheet-card." + state.side);
+    if (!card) return;
+    const cls = dir < 0 ? "enter-r" : "enter-l";
+    card.classList.add(cls);
+    card.addEventListener("animationend", () => card.classList.remove(cls), { once: true });
+  }
+  // Finger moving left (dx < 0) brings in Details; moving right brings back Flying.
+  const sideTo = (dx) => (state.side === "flying" && dx < 0 ? "details" : state.side === "details" && dx > 0 ? "flying" : null);
+  function snapBack(card) {
+    card.style.transition = calm() ? "" : "transform 180ms ease-out";
+    card.style.transform = "";
+    setTimeout(() => { card.style.transition = ""; }, 200);
+  }
+  function dropSwipe() {
+    const s = sw;
+    sw = null;
+    if (s && s.mode === "drag") { s.card.classList.remove("dragging"); snapBack(s.card); }
+  }
+  main.addEventListener("touchstart", (e) => {
+    sw = null;
+    if (state.view !== "book" || !state.settings || sheet || wiz || copyRun || monthsOpen) return;
+    if (!oneSide || !oneSide.matches || e.touches.length !== 1) return;
+    const card = e.target && e.target.closest ? e.target.closest(".sheet-card") : null;
+    if (!card) return;
+    const t = e.touches[0];
+    if (t.clientX < 16 || t.clientX > window.innerWidth - 16) return; // leave the screen edges to the system
+    sw = { x: t.clientX, y: t.clientY, t0: Date.now(), mode: null, card, wrap: e.target.closest(".table-wrap"), dx: 0 };
+  }, { passive: true });
+  main.addEventListener("touchmove", (e) => {
+    if (!sw || sw.mode === "off") return;
+    if (e.touches.length !== 1) { dropSwipe(); return; }
+    const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+    if (!sw.mode) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dy) >= Math.abs(dx)) { sw.mode = "off"; return; }
+      const w = sw.wrap; // a wide table scrolls sideways first; the swipe takes over at its edge
+      if (w && (dx < 0 ? w.scrollLeft + w.clientWidth < w.scrollWidth - 1 : w.scrollLeft > 0)) { sw.mode = "off"; return; }
+      sw.mode = "drag";
+      sw.card.classList.add("dragging");
+    }
+    e.preventDefault();
+    sw.dx = sideTo(dx) ? dx : dx * 0.25;
+    sw.card.style.transform = `translateX(${sw.dx}px)`;
+  }, { passive: false });
+  main.addEventListener("touchend", () => {
+    const s = sw;
+    sw = null;
+    if (!s || s.mode !== "drag") return;
+    s.card.classList.remove("dragging");
+    const to = sideTo(s.dx);
+    const w = s.card.offsetWidth || 1;
+    const fast = Math.abs(s.dx) > 30 && Math.abs(s.dx) / Math.max(1, Date.now() - s.t0) > 0.45;
+    if (!to || !(Math.abs(s.dx) > Math.min(80, w * 0.22) || fast)) { snapBack(s.card); return; }
+    const out = s.dx < 0 ? -1 : 1;
+    if (calm()) { setSide(to); return; }
+    s.card.style.transition = "transform 130ms ease-in";
+    s.card.style.transform = `translateX(${out * (w + 24)}px)`;
+    setTimeout(() => setSide(to, out), 130);
+  });
+  main.addEventListener("touchcancel", dropSwipe);
+
+  /* ---------------- Events ---------------- */
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-act]");
+    if (!t) return;
+    switch (t.dataset.act) {
+      case "view": go(t.dataset.view); break;
+      case "month": {
+        const months = bookMonths();
+        const cur = months[currentMonthIndex(months)];
+        const next = L.shiftMonth(cur.key, Number(t.dataset.dir) < 0 ? -1 : 1);
+        if (next >= months[0].key) { state.month = next; renderMain(); }
+        break;
+      }
+      case "this-month": state.month = null; renderMain(); break;
+      case "look": applyLook(t.dataset.look, true); break;
+      case "side": setSide(t.dataset.side); break;
+      case "months": openMonths(); break;
+      case "close-months": closeMonths(); break;
+      case "goto-month": {
+        if (/^\d{4}-\d{2}$/.test(t.dataset.month || "")) state.month = t.dataset.month;
+        closeMonths();
+        renderMain();
+        try { window.scrollTo(0, 0); } catch (err) { /* ignore */ }
+        break;
+      }
+      case "tick": toggleCopied(t.dataset.id); break;
+      case "edit": openSheet("edit", t.dataset.id); break;
+      case "add": openWizard(); break;
+      case "w-next": wizNext(); break;
+      case "w-back": wizBack(); break;
+      case "w-all": wizAllFields(); break;
+      case "w-pick": {
+        const el = document.getElementById("w-in");
+        if (el) el.value = t.dataset.value;
+        wizNext();
+        break;
+      }
+      case "w-role": if (wiz) { readWizInput(); wiz.v.role = t.dataset.value === "dual" ? "dual" : "solo"; wiz.dupOk = false; renderWiz(); } break;
+      case "mark-month": markMonthCopied(); break;
+      case "copy-start": startCopy(); break;
+      case "copy-next": copyNext(); break;
+      case "copy-back": copyBack(); break;
+      case "copy-close": closeCopy(); break;
+      case "year": state.statsYear = Number(t.dataset.year); renderMain(); break;
+      case "export-csv": exportFile("csv"); break;
+      case "export-json": exportFile("json"); break;
+      case "copy-csv": copyText(); break;
+      case "reconnect": if (coll) subscribe(); render(); break;
+      case "close-sheet": closeSheet(); break;
+      case "pick": pickChip(t); break;
+      case "other": openOther(t.dataset.field); break;
+      case "role": setToggle("role", t.dataset.value); break;
+      case "more": toggleMore(); break;
+      case "delete": readSheet(); sheet.confirmDelete = true; renderSheet(); focusEl(document.querySelector('[data-act="delete-cancel"]')); break;
+      case "delete-cancel": readSheet(); sheet.confirmDelete = false; renderSheet(); break;
+      case "delete-confirm": if (sheet) deleteFlight(sheet.id); break;
+      default: break;
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (monthsOpen) { e.preventDefault(); closeMonths(); return; }
+      if (copyRun) { e.preventDefault(); closeCopy(); return; }
+      if (wiz) { e.preventDefault(); closeWiz(); return; }
+      if (sheet) { e.preventDefault(); closeSheet(); return; }
+    }
+    const t = e.target;
+    if (e.key === "Enter" && wiz && t && t.id === "w-in") { e.preventDefault(); wizNext(); return; }
+    // In the flight sheet, Return just closes the keyboard; saving stays a deliberate tap.
+    if (e.key === "Enter" && t && t.matches && t.matches(".q-other input, #f-type")) { e.preventDefault(); t.blur(); return; }
+    if ((e.key === "Enter" || e.key === " ") && t && t.matches && t.matches('tr[data-act="edit"], tr[data-act="add"]')) {
+      e.preventDefault();
+      if (t.dataset.act === "edit") openSheet("edit", t.dataset.id); else openWizard();
+    }
+  });
+  // Tapping a shortcut, toggle or Next keeps the text box focused, so the keyboard stays up.
+  document.addEventListener("mousedown", (e) => {
+    const t = e.target;
+    if (wiz && t && t.closest && t.closest(".wiz .keep")) e.preventDefault();
+  });
+  // On a computer, open the calendar on any click on the date (phones open it natively on tap).
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    if (t && (t.id === "w-date-in" || t.id === "f-date") && typeof t.showPicker === "function" && window.matchMedia && window.matchMedia("(pointer: fine)").matches) {
+      try { t.showPicker(); } catch (err) { /* not allowed here */ }
+    }
+  });
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (sheet && t && t.id === "f-date") { sheet.dupOk = false; clearSheetError(); updateLive(); }
+    if (wiz && t && t.id === "w-date-in" && L.validISO(t.value) && coveredByTotals(t.value)) {
+      t.value = wiz.v.date;
+      toast(coveredMsg());
+      return;
+    }
+    if (wiz && t && t.id === "w-date-in" && L.validISO(t.value) && t.value <= todayISO()) {
+      readWizInput();
+      wiz.v.date = t.value;
+      wiz.dateOpen = false;
+      wiz.dupOk = false;
+      renderWiz();
+    }
+  });
+  document.addEventListener("submit", (e) => {
+    if (e.target.id === "flight-form") { e.preventDefault(); if (sheet && !sheet.confirmDelete) submitSheet(); }
+    else if (e.target.id === "setup-form") { e.preventDefault(); saveSetup(); }
+  });
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    if (sheet && t.closest("#flight-form")) { sheet.dupOk = false; clearSheetError(); updateLive(); }
+    if (wiz && t.id === "w-in") {
+      wiz.dupOk = false;
+      const err = document.getElementById("w-err");
+      if (err) { err.textContent = ""; err.className = "err"; }
+      const steps = wizSteps(wiz.v);
+      const btn = document.getElementById("w-next");
+      if (btn) btn.textContent = steps.indexOf(wiz.step) === steps.length - 1 ? "Save" : "Next";
+      updateWizLive();
+    }
+    if (t.closest("#setup-form")) { state.setupDirty = true; updateSetupCheck(); }
+  });
+  window.addEventListener("hashchange", () => {
+    const h = (location.hash || "").slice(1);
+    if (VIEWS.includes(h) && h !== state.view) {
+      if (state.view === "setup") state.setupDirty = false;
+      state.view = h;
+      render();
+    }
+  });
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (state.view === "stats" && state.conn === "ready") drawChart(); }, 150);
+  });
+
+  /* ---------------- Boot ---------------- */
+  function start(data) {
+    data = data || {};
+    if (VIEWS.includes(data.view)) state.view = data.view;
+    if (typeof data.month === "string") state.month = data.month;
+    if (data.side === "flying" || data.side === "details") state.side = data.side;
+    if (Number.isFinite(data.statsYear)) state.statsYear = data.statsYear;
+    const h = (location.hash || "").slice(1);
+    if (VIEWS.includes(h)) state.view = h;
+    render();
+    connect();
+  }
+  const hot = window.claude && window.claude.hot;
+  try { if (hot && typeof hot.snapshot === "function") hot.snapshot(() => ({ view: state.view, month: state.month, side: state.side, statsYear: state.statsYear })); } catch (e) { /* optional */ }
+  if (hot && typeof hot.ready === "function") hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
