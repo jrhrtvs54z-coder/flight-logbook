@@ -198,6 +198,27 @@ t("night currency: 45 days, warns from day 38, lapses after day 45", () => {
   assert.equal(L.nightStatus([], {}, "2026-11-08").state, "none");
   assert.equal(L.nightStatus([], {}, "2026-11-08").limit, 45);
 });
+t("backup: reads a Flight Logbook backup into settings and year documents", () => {
+  seq = 0;
+  const a = fl("2026-12-30", 1.2, 0), b = fl("2027-01-03", 0.9, 0.4, "dual", { captain: "Maj Ali" });
+  const text = JSON.stringify({ app: "Flight Logbook", format: 1, exportedAt: "2027-01-05T10:00:00.000Z",
+    settings: { kind: "settings", bf: { c1: 1 }, asOf: "2026-08-31", look: "paper" }, flights: [a, b, { id: "bad/id", date: "2026-12-01" }, { id: "x1", date: "2026-13-01" }] });
+  const p = L.parseBackup(text);
+  assert.equal(p.error, undefined);
+  assert.equal(p.count, 2);
+  assert.equal(p.last, "2027-01-03");
+  assert.deepEqual(Object.keys(p.years).sort(), ["y2026", "y2027"]);
+  assert.equal(p.years.y2027.year, 2027);
+  assert.equal(p.years.y2027.flights[b.id].captain, "Maj Ali");
+  assert.equal(p.years.y2026.flights[a.id].id, undefined);
+  assert.equal(p.settings.asOf, "2026-08-31");
+  assert.equal(p.settings.kind, "settings");
+  assert.equal(p.exportedAt, "2027-01-05T10:00:00.000Z");
+  assert.ok(L.parseBackup("not json").error);
+  assert.ok(L.parseBackup(JSON.stringify({ app: "Duty Roster", settings: {}, flights: [] })).error);
+  assert.ok(L.parseBackup(JSON.stringify({ app: "Flight Logbook", format: 2, settings: {}, flights: [] })).error);
+  assert.equal(L.parseBackup("  " + JSON.stringify({ app: "Flight Logbook", format: 1, settings: {}, flights: [] }) + "\n").count, 0);
+});
 t("copy list: flights not yet copied, oldest first, no totals", () => {
   seq = 0;
   const rows = L.sortRows([fl("2026-11-05", 1, 0), fl("2026-11-01", 1, 0, "solo", { copied: true }), fl("2026-10-28", 1, 0)]);

@@ -1,6 +1,27 @@
 # Flight Logbook
 
-A personal digital flight logbook, built as a single-page Claude artifact. It mirrors a paper military logbook (the Flying page and the Details page, Section 4) and is used as the day-to-day working log. The paper book stays the official record; the app shows exactly what to write in it and does the math.
+A personal digital flight logbook. It mirrors a paper military logbook (the Flying page and the Details page, Section 4) and is used as the day-to-day working log. The paper book stays the official record; the app shows exactly what to write in it and does the math.
+
+**Open it:** https://jrhrtvs54z-coder.github.io/flight-logbook/
+
+## Install
+
+- **iPhone:** open the link in Safari → Share → Add to Home Screen → Add. Then open Logbook from your home screen.
+- **Android:** open the link in Chrome → ⋮ → Add to Home screen (or Install app).
+
+On iPhone, the home-screen app keeps its own data, separate from Safari. Install it first, then set it up or restore a backup inside the app. After the first open it also works offline.
+
+## Move your logbook from the Claude version
+
+1. In the Claude version, open **Setup → Copy backup as text** (or **Back up now** for a file).
+2. Open Logbook from your home screen and tap **Restore a backup** (on the first screen, or later in **Setup**).
+3. Paste the text, or choose the file, then tap **Next** and **Replace with this backup**.
+
+## Privacy
+
+The home-screen app has no account and no server. Everything you enter stays on your phone, inside the app. Removing the app from your home screen deletes that data, so use **Setup → Back up now** once a month and keep the file somewhere safe, like iCloud Drive.
+
+This repository holds only the app's code. It has no flights, names or totals.
 
 ## Features
 
@@ -10,7 +31,7 @@ A personal digital flight logbook, built as a single-page Claude artifact. It mi
 - **Night currency:** 45-day limit by default, warns from day 38. Stats shows the days left and the date to fly at night by.
 - **Stats:** days since the last flight and last night flight, hours in the last 30 and 90 days, logbook totals, hours by month and by year.
 - **Setup:** logbook totals as of a date (the app blocks earlier dates so nothing is counted twice), night currency settings, default Type & Mark, and 7 themes (Ledger, Logbook Paper, Cockpit, Night Ops, Desert, Clean, Sunlight).
-- **Backup:** CSV (opens in Excel) or full JSON.
+- **Backup and restore:** a backup file or text (JSON), restore by pasting or choosing the file, and a CSV export for Excel.
 
 ## How the columns are filled
 
@@ -23,19 +44,28 @@ A personal digital flight logbook, built as a single-page Claude artifact. It mi
 
 Hours are decimal tenths (1.4). All math is done in whole tenths, so totals never drift.
 
-## Data and privacy
+## Two versions, one file
 
-No flight data is stored in this repository. The app saves each user's logbook privately in their own Claude account (artifact storage under `data/users/<user id>/`: a `settings` document plus one document per year, such as `y2026`). Only the signed-in owner can read it, even if the app link is shared.
+`index.html` runs in two places:
+
+- **Home-screen app (GitHub Pages):** no Claude around, so the logbook is kept in the browser's storage on the phone (`logbook.data.v1`), using the same calls the app makes to Claude's storage. The icon, manifest and offline worker are only switched on here.
+- **Claude artifact:** the logbook is saved privately in the owner's Claude account (artifact storage under `data/users/<user id>/`).
+
+The two keep separate data. Move between them with a backup.
 
 ## Project layout
 
 ```
 index.html               The whole app: HTML, CSS and JavaScript in one file.
+manifest.webmanifest     Home-screen app name, colours and icons.
+sw.js                    Offline support for the home-screen app.
+icons/                   App icons (iPhone, Android, browser tab).
+.nojekyll                Tells GitHub Pages to serve the files as they are.
 tests/logic.test.mjs     Tests for the pure logic block in index.html.
 docs/spec.md             The full spec: rules, screens and design decisions.
 ```
 
-The pure logic (column rules, month totals, night currency, CSV, hours parsing) sits between `/*LOGIC-START*/` and `/*LOGIC-END*/` in `index.html`, so it can be tested without a browser.
+The pure logic (column rules, month totals, night currency, backups, CSV, hours parsing) sits between `/*LOGIC-START*/` and `/*LOGIC-END*/` in `index.html`, so it can be tested without a browser.
 
 ## Run the tests
 
@@ -45,8 +75,7 @@ Needs Node 18 or newer. No packages to install.
 npm test
 ```
 
-or `node tests/logic.test.mjs`.
-
 ## Publishing
 
-The live app is a Claude artifact. To release a change, publish `index.html` as the artifact's `index.html`. The app uses the artifact runtime's `db`, `user` and `downloads` capabilities, so it only saves data when opened inside Claude while signed in.
+- **Home-screen app:** GitHub Pages serves the `main` branch (Settings → Pages → Deploy from a branch → `main`, `/ (root)`). Every push to `main` goes live; the app picks it up the next time it opens online. Bump `VERSION` in `sw.js` when the icons or manifest change.
+- **Claude artifact:** publish `index.html` as the artifact's `index.html`.

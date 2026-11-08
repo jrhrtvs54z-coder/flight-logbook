@@ -43,15 +43,21 @@
 - **Setup:** "Totals as of" date (required, not in the future, before the first flight in the app) + totals (1), (3), (4), (6), (7), (8), (14), with (7) checked against (1)+(3)+(4)+(6); night currency limit and last night flight before the app; default Type & Mark; Theme; Backup.
 - **Themes:** Ledger (default, follows light/dark), Logbook Paper, Cockpit, Night Ops, Desert, Clean (follows light/dark), Sunlight. Applied at once, remembered on the device and saved in settings so other devices follow.
 
+## Two versions
+- **Home-screen app (GitHub Pages):** installed from Safari (Share → Add to Home Screen). No account, no server: the logbook stays on the phone in the app's own storage (`localStorage` key `logbook.data.v1`, same document layout as below under `data/users/phone/`). Works offline after the first open (service worker: page fetched fresh when online, saved copy offline; fonts and icons cached). Removing the app deletes its data, so back up monthly. On iPhone the home-screen app and Safari keep separate data; Setup shows an install note while it runs in Safari.
+- **Claude artifact:** saved in the user's Claude account (below). The icon, manifest and offline worker are only switched on in the home-screen app.
+- The two keep separate data; move between them with a backup.
+
 ## Storage
 - Artifact storage in the user's Claude account, under `data/users/<user id>/`: a `settings` document (totals, totals date `asOf`, night currency, defaults, theme `look`) and one document per year (`y2026`) holding that year's flights in a `flights` map.
 - Writes are merged per flight; deletes are tombstones (`deleted: true`). Optimistic local update, then the server snapshot.
 - Older settings may also hold `startPage` and `rowsPerPage` from the earlier page-based version; they are kept but unused.
 
-## Backup
-- CSV: Year, Month, Date, Type & Mark, No., Captain, Crew, Duty, the seven columns, Copied, ISO date. First row "Totals as of …", last row "Total to date".
-- Full JSON.
-- "Copy all as text" when downloads are blocked.
+## Backup and restore
+- **Back up now:** the full backup as a JSON file (`flight-logbook-YYYY-MM-DD.json`: app "Flight Logbook", format 1, settings and every flight). On the phone it opens the share sheet (Save to Files, iCloud Drive).
+- **Copy backup as text:** the same backup on the clipboard; if copying isn't allowed, it is shown in a box to select and copy by hand.
+- **Restore a backup:** paste the text or choose the file → summary (date made, flights, last flight, totals date) → "Replace with this backup". It replaces everything in this copy of the app. Also offered on the first screen before setup.
+- **Export for Excel (.csv):** Year, Month, Date, Type & Mark, No., Captain, Crew, Duty, the seven columns, Copied, ISO date. First row "Totals as of …", last row "Total to date". "Copy table as text (for Excel)" copies the same table.
 
 ## Decided against
 - Offline logging, month-end reminders, extra per-flight fields (notes, formation position, NVG), simulator or civil flying, past hours as yearly/monthly totals, copy-last-flight, photos of old pages, airline-style summary.
@@ -63,4 +69,3 @@
 
 ## Not included yet
 - Landings, instrument time, approaches.
-- Restoring from a backup file inside the app.
