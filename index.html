@@ -476,6 +476,14 @@ main { padding-top: 16px; padding-bottom: calc(48px + env(safe-area-inset-bottom
 .wiz .chips .chip { min-height: 44px; padding: 9px 15px; font-family: var(--font-num); font-size: 16px; }
 .wiz .seg button { padding: 9px 15px; font-size: 14px; }
 .wiz .q-cols { font-family: var(--font-num); font-size: 13px; color: var(--pen); }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.days .dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.06em; }
+.dayc { position: relative; aspect-ratio: 1 / 1; min-height: 42px; display: grid; place-items: center; padding: 0; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--sheet); color: var(--ink); font-family: var(--font-num); font-size: 17px; font-weight: 700; cursor: pointer; }
+.dayc i { position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font-style: normal; font-size: 9px; line-height: 1; letter-spacing: 2px; color: var(--pen); }
+.dayc.today { border-color: var(--pen); }
+.dayc[aria-pressed="true"] { background: var(--pen); border-color: var(--pen); color: var(--sheet); }
+.dayc[aria-pressed="true"] i { color: var(--sheet); }
+.dayc:disabled { opacity: 0.35; border-style: dashed; cursor: default; }
 .wiz-date { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--pen); font-family: var(--font-num); font-size: 15px; cursor: pointer; }
 .wiz-date input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; font-size: 16px; cursor: pointer; -webkit-appearance: none; appearance: none; }
 .panel-body > .seg { justify-self: start; }
@@ -1224,7 +1232,11 @@ const Logic = (() => {
         <button type="button" data-act="side" data-side="flying" aria-pressed="${state.side === "flying"}">Flying page</button>
         <button type="button" data-act="side" data-side="details" aria-pressed="${state.side === "details"}">Details page</button>
       </div>
-      <button class="add-btn" type="button" data-act="add">+ Add flight</button>`;
+      ${(() => {
+        const pm = addTargetMonth();
+        return pm ? `<button class="add-btn" type="button" data-act="add" aria-label="Add a flight in ${monthLabelOf(pm)}">+ Add to ${L.MONTHS[Number(pm.slice(5, 7)) - 1]}</button>`
+          : `<button class="add-btn" type="button" data-act="add">+ Add flight</button>`;
+      })()}`;
   }
   function renderStatus() {
     const el = document.getElementById("sync");
@@ -1239,6 +1251,7 @@ const Logic = (() => {
   function renderMain() {
     if (state.view === "setup" && state.setupDirty) return;
     main.dataset.view = state.view;
+    renderTools(); // the Add button follows the month on screen
     const keep = {};
     main.querySelectorAll(".table-wrap[data-k]").forEach((el) => { keep[el.dataset.k] = el.scrollLeft; });
     let html = "";
@@ -1932,8 +1945,45 @@ const Logic = (() => {
      Jet → Duty → Hours (+ night part if Split, + Captain if Dual). The keyboard opens on each step;
      usual answers sit above it as one-tap shortcuts and filter as you type. */
   const WIZ_FIELD = { tail: "tail", duty: "duty", day: "dayStr", night: "nightStr", captain: "captain" };
+  // The earlier month on screen in the Book, if any. Add flight then starts by picking a day in it;
+  // in this month or a future one the date is today.
+  function addTargetMonth() {
+    if (state.view !== "book" || !state.settings) return "";
+    const months = bookMonths(), key = months[currentMonthIndex(months)].key;
+    return key < thisMonthKey() ? key : "";
+  }
+  const monthLabelOf = (key) => `${L.MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`;
+  // First day of the week from the phone's region (0 = Sunday … 6 = Saturday); Sunday if unknown.
+  function firstWeekday() {
+    try {
+      const loc = new Intl.Locale(navigator.language || "en");
+      const wi = typeof loc.getWeekInfo === "function" ? loc.getWeekInfo() : loc.weekInfo;
+      if (wi && wi.firstDay) return wi.firstDay % 7;
+    } catch (e) { /* older browsers */ }
+    return 0;
+  }
+  // The month's days to tap. Days after today, or covered by the setup totals, can't be picked.
+  function dayGrid(key, chosen) {
+    const y = Number(key.slice(0, 4)), m = Number(key.slice(5, 7));
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const fw = firstWeekday();
+    const offset = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() - fw + 7) % 7;
+    const today = todayISO(), min = firstAllowed();
+    const count = {};
+    for (const r of state.rows) if (r.date.slice(0, 7) === key) count[r.date] = (count[r.date] || 0) + 1;
+    const names = ["S", "M", "T", "W", "T", "F", "S"];
+    let html = names.map((_, i) => `<span class="dow" aria-hidden="true">${names[(i + fw) % 7]}</span>`).join("") + "<span></span>".repeat(offset);
+    for (let d = 1; d <= days; d++) {
+      const iso = `${key}-${String(d).padStart(2, "0")}`;
+      const off = iso > today || (!!min && iso < min);
+      const c = count[iso] || 0;
+      html += `<button type="button" class="dayc keep${iso === today ? " today" : ""}" data-act="w-day" data-date="${iso}" aria-pressed="${iso === chosen}"${off ? " disabled" : ""}` +
+        ` aria-label="${esc(L.longDate(iso))}${c ? `, ${plural(c, "flight", "flights")} logged` : ""}">${d}${c ? `<i>${"•".repeat(Math.min(c, 3))}</i>` : ""}</button>`;
+    }
+    return `<div class="days" role="group" aria-label="Days in ${monthLabelOf(key)}">${html}</div>`;
+  }
   function wizSteps(v) {
-    const s = ["tail", "duty", "day", "night"];
+    const s = v.pick ? ["date", "tail", "duty", "day", "night"] : ["tail", "duty", "day", "night"];
     if (v.role === "dual") s.push("captain");
     return s;
   }
@@ -1944,9 +1994,10 @@ const Logic = (() => {
     lastFocus = document.activeElement;
     const rows = state.rows;
     const withZero = (arr) => ["0.0"].concat(arr.map((t) => L.fmtT(t)));
+    const pick = addTargetMonth();
     wiz = {
-      step: "tail", dupOk: false, dateOpen: false,
-      v: { date: todayISO(), tail: "", duty: "", dayStr: "", nightStr: "", role: "solo", captain: "" },
+      step: pick ? "date" : "tail", dupOk: false, dateOpen: false,
+      v: { date: pick ? "" : todayISO(), pick, tail: "", duty: "", dayStr: "", nightStr: "", role: "solo", captain: "" },
       lists: {
         tail: L.topValues(rows, (r) => r.tail, 8),
         duty: L.topValues(rows, (r) => r.duty, 8),
@@ -1983,11 +2034,13 @@ const Logic = (() => {
     const steps = wizSteps(v);
     const k = Math.max(0, steps.indexOf(w.step));
     const isLast = k === steps.length - 1;
+    const isDate = w.step === "date";
     const today = todayISO(), yday = L.addDays(today, -1);
-    const dateLabel = v.date === today ? `Today · ${L.shortDate(v.date)}` : v.date === yday ? `Yesterday · ${L.shortDate(v.date)}` : L.longDate(v.date);
-    const sofar = [L.shortDate(v.date), v.tail, v.duty, v.dayStr !== "" ? `day ${v.dayStr}` : "", v.nightStr !== "" ? `night ${v.nightStr}` : ""]
-      .slice(0, 1 + k).filter(Boolean);
-    const q = { tail: "Which jet?", duty: "Duty?", day: "Day hours?", night: "Night hours?", captain: "Captain? (the other pilot)" }[w.step];
+    const dateLabel = !v.date ? "" : v.date === today ? `Today · ${L.shortDate(v.date)}` : v.date === yday ? `Yesterday · ${L.shortDate(v.date)}` : L.longDate(v.date);
+    // What's been answered before this step (the date first).
+    const sofar = [v.date ? L.shortDate(v.date) : "", v.tail, v.duty, v.dayStr !== "" ? `day ${v.dayStr}` : "", v.nightStr !== "" ? `night ${v.nightStr}` : ""]
+      .slice(0, k + (v.pick ? 0 : 1)).filter(Boolean);
+    const q = { date: v.pick ? `Which day in ${monthLabelOf(v.pick)}?` : "Which day?", tail: "Which jet?", duty: "Duty?", day: "Day hours?", night: "Night hours?", captain: "Captain? (the other pilot)" }[w.step];
     const attrs = {
       tail: 'inputmode="numeric" placeholder="e.g. 431"',
       duty: 'inputmode="text" autocapitalize="characters" placeholder="e.g. BFM"',
@@ -1997,6 +2050,20 @@ const Logic = (() => {
     }[w.step];
     const seg = (act, opts, cur, label) => `<div class="seg" role="group" aria-label="${label}">${opts.map(([val, txt]) =>
       `<button type="button" class="keep" data-act="${act}" data-value="${val}" aria-pressed="${cur === val}">${txt}</button>`).join("")}</div>`;
+    const body = isDate
+      ? `<p class="wiz-q" id="w-q" tabindex="-1">${q}</p>
+          ${dayGrid(v.pick, v.date)}
+          <p class="err" id="w-err" role="alert"></p>
+          <p class="q-cols">A dot means a flight is already logged that day.</p>`
+      : `<label class="wiz-q" for="w-in" id="w-q">${q}</label>
+          ${w.step === "day" || w.step === "night" ? `<div class="q-two">${seg("w-role", [["solo", "Solo"], ["dual", "Dual"]], v.role, "Who was aboard")}</div>` : ""}
+          <div class="wiz-row">
+            <input id="w-in" ${attrs} enterkeyhint="${isLast ? "done" : "next"}" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(v[WIZ_FIELD[w.step]])}">
+            <button class="btn primary keep" type="button" data-act="w-next" id="w-next">${isLast ? (w.dupOk ? "Save anyway" : "Save") : "Next"}</button>
+          </div>
+          <p class="err" id="w-err" role="alert"></p>
+          <div class="chips" id="w-chips"></div>
+          ${w.step === "day" || w.step === "night" ? `<p class="q-cols" id="w-cols"></p>` : ""}`;
     root.innerHTML = `
       <div class="wiz" role="dialog" aria-modal="true" aria-labelledby="w-q">
         <div class="wrap wiz-head">
@@ -2006,19 +2073,11 @@ const Logic = (() => {
         </div>
         <div class="wrap wiz-progress" aria-hidden="true">${steps.map((s, i) => `<span class="${i <= k ? "on" : ""}"></span>`).join("")}</div>
         <div class="wrap wiz-body">
-          <div class="wiz-ctx">
+          ${v.date ? `<div class="wiz-ctx">
             <label class="wiz-date" for="w-date-in"><span>${esc(dateLabel)} ▾</span><input id="w-date-in" type="date" value="${esc(v.date)}"${firstAllowed() ? ` min="${firstAllowed()}"` : ""} max="${today}" aria-label="Flight date"></label>
-          </div>
-          ${k > 0 ? `<p class="wiz-sofar">${esc(sofar.join(" · "))}</p>` : ""}
-          <label class="wiz-q" for="w-in" id="w-q">${q}</label>
-          ${w.step === "day" || w.step === "night" ? `<div class="q-two">${seg("w-role", [["solo", "Solo"], ["dual", "Dual"]], v.role, "Who was aboard")}</div>` : ""}
-          <div class="wiz-row">
-            <input id="w-in" ${attrs} enterkeyhint="${isLast ? "done" : "next"}" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(v[WIZ_FIELD[w.step]])}">
-            <button class="btn primary keep" type="button" data-act="w-next" id="w-next">${isLast ? (w.dupOk ? "Save anyway" : "Save") : "Next"}</button>
-          </div>
-          <p class="err" id="w-err" role="alert"></p>
-          <div class="chips" id="w-chips"></div>
-          ${w.step === "day" || w.step === "night" ? `<p class="q-cols" id="w-cols"></p>` : ""}
+          </div>` : ""}
+          ${sofar.length && !isDate && (k > 0) ? `<p class="wiz-sofar">${esc(sofar.join(" · "))}</p>` : ""}
+          ${body}
         </div>
       </div>`;
     lockScroll();
@@ -2027,7 +2086,7 @@ const Logic = (() => {
     if (inp) {
       focusEl(inp);
       try { const n = inp.value.length; inp.setSelectionRange(n, n); } catch (e) { /* not supported */ }
-    }
+    } else focusEl(document.getElementById("w-q"));
   }
   function updateWizLive() {
     if (!wiz) return;
@@ -2061,7 +2120,10 @@ const Logic = (() => {
     if (!wiz) return;
     readWizInput();
     const w = wiz, v = w.v, steps = wizSteps(v), k = steps.indexOf(w.step);
-    if (w.step === "tail") {
+    if (w.step === "date") {
+      if (!L.validISO(v.date) || v.date > todayISO()) return wizError("Tap the day of the flight.");
+      if (coveredByTotals(v.date)) return wizError(coveredMsg());
+    } else if (w.step === "tail") {
       if (!v.tail.trim()) return wizError("Type the jet number, or tap one below.");
       v.tail = L.matchKnown(v.tail, w.lists.tail);
     } else if (w.step === "duty") {
@@ -2123,8 +2185,15 @@ const Logic = (() => {
     const v = wiz.v;
     const d = L.parseHours(v.dayStr, 240), n = L.parseHours(v.nightStr, 240);
     const blank = (s) => String(s == null ? "" : s).trim() === "";
+    // Not picked a day yet: start the form on the first day that can be picked in that month.
+    let date = v.date;
+    if (!date && v.pick) {
+      date = `${v.pick}-01`;
+      if (firstAllowed() && date < firstAllowed()) date = firstAllowed();
+      if (date > todayISO()) date = todayISO();
+    }
     const prefill = {
-      date: v.date, tail: v.tail.trim(), duty: v.duty.trim(),
+      date: date || todayISO(), tail: v.tail.trim(), duty: v.duty.trim(),
       dayT: blank(v.dayStr) || !d.ok ? null : d.t, nightT: blank(v.nightStr) || !n.ok ? null : n.t,
       role: v.role, captain: v.captain.trim(),
     };
@@ -2523,6 +2592,7 @@ const Logic = (() => {
         wizNext();
         break;
       }
+      case "w-day": if (wiz && t.dataset.date) { wiz.v.date = t.dataset.date; wiz.dupOk = false; wizNext(); } break;
       case "w-role": if (wiz) { readWizInput(); wiz.v.role = t.dataset.value === "dual" ? "dual" : "solo"; wiz.dupOk = false; renderWiz(); } break;
       case "mark-month": markMonthCopied(); break;
       case "copy-start": startCopy(); break;
